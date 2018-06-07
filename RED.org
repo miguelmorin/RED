@@ -133,11 +133,7 @@ using Gallium # For debugging in the REPL
 	 # Apply this function to peaks and troughs, in quarters and in months
 	 peaks_months = map(string_to_date, data[:NBER_peaks][:values]);
 	 troughs_months = map(string_to_date, data[:NBER_troughs][:values]);
-
-   # Problem! this next line fails with an error but is silenced by the colon
-
-	 peaks_quarters = map(string_to_date, data[:NBER_peaks][:values], quarter_to_month = true);
-   @assert false
+	 peaks_quarters = map(string_to_date_quarter, data[:NBER_peaks][:values]);
 	 troughs_quarters = map(string_to_date_quarter, data[:NBER_troughs][:values]);
  #+END_SRC
 
@@ -171,11 +167,13 @@ using Gallium # For debugging in the REPL
  Payroll employment is slower to recover after the last three recessions, compared to a given recovery of output of 5%.
 
  #+BEGIN_SRC julia :session :results output :tangle yes
-      recovery = 0.05
-   gdp_df = data[:GDPC1]
+      recovery = 0.05;
+   gdp_df = data[:GDPC1];
 
 	   # Iterate on peaks
-	 for peak in peaks_quarters
+	 for peak_tuple in enumerate(peaks_quarters)
+	  i_peak = peak_tuple[1]
+	  peak = peak_tuple[2]
 
 	   # Focus on post-war period
 	   if 1945 >= Dates.year(peak)
@@ -192,33 +190,58 @@ using Gallium # For debugging in the REPL
 	   end
 
 	   # Get the index in the GDP DataFrame
-	   peak_index_gdp_results = find(x -> x == peak, gpd_df[:DATE])
-	   @assert 1 == length(peak_index_gdp_results)
-	   peak_index_gdp = peak_index_gdp_results[1]
+	   gdp_trough_index_results = find(x -> x == trough, gdp_df[:DATE]);
+	   @assert 1 == length(gdp_trough_index_results)
+	   gdp_trough_index = gdp_trough_index_results[1]
 
 	  # Find the bracket of time by which GDP has recovered by x%, so with
 	     # interpolation we'll find the time by which it has recovered exactly by 5%
-   #       gdp_above = gdp_df[:
-          @assert false
+	     index_after = gdp_df[:DATE] .> gdp_df[:DATE][gdp_trough_index]
+	     index_recovery = gdp_df[:GDPC1] .>= gdp_df[:GDPC1][gdp_trough_index] * (1 + recovery)
+	     gdp_recovery_above_indices = find(index_after .& index_recovery)
+	     @assert 1 <= length(gdp_recovery_above_indices)
+	     gdp_recovery_above_index = gdp_recovery_above_indices[1]
 
-	   println(peak, " - ", trough, " - ", peak_index_gdp)
+	  # Skip if this recovery was cut short, i.e. if the date for the recovery index happens
+	     # after the next peak
+	  if (length(peaks_quarters) > i_peak)
+	      if (peaks_quarters[i_peak + 1] < gdp_df[:DATE][gdp_recovery_above_index])
+		  continue
+	      end
+	  end
+
+	  # Amount of recovery at this index
+	  gdp_recovery_above = gdp_df[:GDPC1][gdp_recovery_above_index] / gdp_df[:GDPC1][gdp_trough_index]
+
+	  # At the time of writing, the 5% mark never falls right on
+	     # a quarter, but I make the program fail in case that happens in the future
+
+	  @assert 1 + recovery != gdp_recovery_above
+
+
+	  gdp_recovery_below_index = gdp_recovery_above_index - 1
+
+
+	   println(peak, "-", trough, " - ", trough, " - ", gdp_trough_index, " - ")
 	 end
  #+END_SRC
 
  #+RESULTS:
  #+begin_example
 
- 1948-10-01 - 1949-10-01 - 8
- 1953-04-01 - 1954-04-01 - 26
- 1957-07-01 - 1958-04-01 - 43
- 1960-04-01 - 1961-01-01 - 54
- 1969-10-01 - 1970-10-01 - 92
- 1973-10-01 - 1975-01-01 - 108
- 1980-01-01 - 1980-07-01 - 133
- 1981-07-01 - 1982-10-01 - 139
- 1990-07-01 - 1991-01-01 - 175
- 2001-01-01 - 2001-10-01 - 217
- 2007-10-01 - 2009-04-01 - 244
+
+
+
+ 1948-10-01-1949-10-01 - 1949-10-01 - 12 - 
+ 1953-04-01-1954-04-01 - 1954-04-01 - 30 - 
+ 1957-07-01-1958-04-01 - 1958-04-01 - 46 - 
+ 1960-04-01-1961-01-01 - 1961-01-01 - 57 - 
+ 1969-10-01-1970-10-01 - 1970-10-01 - 96 - 
+ 1973-10-01-1975-01-01 - 1975-01-01 - 113 - 
+ 1981-07-01-1982-10-01 - 1982-10-01 - 144 - 
+ 1990-07-01-1991-01-01 - 1991-01-01 - 177 - 
+ 2001-01-01-2001-10-01 - 2001-10-01 - 220 - 
+ 2007-10-01-2009-04-01 - 2009-04-01 - 250 -
  #+end_example
 
  #+RESULTS:
