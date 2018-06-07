@@ -95,46 +95,50 @@ using Gallium # For debugging in the REPL
  This block converts NBER dates in text-form into Julia dates, and applies the transformation to NBER peaks and troughs.
 
  #+BEGIN_SRC julia :session :results output :tangle yes
-	  # Build dictionary from month names to integers
-	  MONTHTOVALUE = Dict{String, Integer}();
-	  for i in 1:12
-	      month = Dates.format(Date(1990, i, 1), "U")
-	      MONTHTOVALUE[month] = i
-	  end;
+	     # Build dictionary from month names to integers
+	     MONTHTOVALUE = Dict{String, Integer}();
+	     for i in 1:12
+		 month = Dates.format(Date(1990, i, 1), "U")
+		 MONTHTOVALUE[month] = i
+	     end;
 
-	# Same approach for converting quarters into months:
-	QUARTERSTOMONTH = Dict("I" => 1, "II" => 4, "III" => 7, "IV" => 10);
+	   # Same approach for converting quarters into months:
+	   QUARTERSTOMONTH = Dict("I" => 1, "II" => 4, "III" => 7, "IV" => 10);
 
-	  # Regular expression for date in the format [Month Year(Quarter)]
-	  date_regex = r"(^[A-Z][a-z]*) ?(\d{4}) ?\((I*V?)\)";
-	  function string_to_date(date_string; quarter_not_month = false)
+	     # Regular expression for date in the format [Month Year(Quarter)]
+	     date_regex = r"(^[A-Z][a-z]*) ?(\d{4}) ?\((I*V?)\)";
+	     function string_to_date(date_string; quarter_not_month = false)
 
-	      year = parse(Int, replace(date_string, date_regex, s"\2"))
+		 year = parse(Int, replace(date_string, date_regex, s"\2"))
 
 
-	    if (quarter_not_month)
-	      quarter_string = replace(date_string, date_regex, s"\3")
-	      month = QUARTERSTOMONTH[quarter_string]
-	    else
-	      month = MONTHTOVALUE[replace(date_string, date_regex, s"\1")]      
-	    end
+	       if (quarter_not_month)
+		 quarter_string = replace(date_string, date_regex, s"\3")
+		 month = QUARTERSTOMONTH[quarter_string]
+	       else
+		 month = MONTHTOVALUE[replace(date_string, date_regex, s"\1")]      
+	       end
 
-	      return Dates.Date(year, month, 1)
-	  end;
+		 return Dates.Date(year, month, 1)
+	     end;
 
-   function string_to_date_quarter(date_string)
-    return string_to_date(date_string, quarter_not_month = true)
-   end;
-	  @assert Dates.Date(1860, 10, 1) == string_to_date("October 1860(III)")
-      @assert Dates.Date(2007, 12, 1) == string_to_date("December 2007 (IV)")
-      @assert Dates.Date(2007, 10, 1) == string_to_date("December 2007 (IV)", quarter_not_month = true)
-      @assert Dates.Date(1948, 10, 1) == string_to_date("November 1948(IV)", quarter_not_month = true)
+      function string_to_date_quarter(date_string)
+       return string_to_date(date_string, quarter_not_month = true)
+      end;
+	     @assert Dates.Date(1860, 10, 1) == string_to_date("October 1860(III)")
+	 @assert Dates.Date(2007, 12, 1) == string_to_date("December 2007 (IV)")
+	 @assert Dates.Date(2007, 10, 1) == string_to_date("December 2007 (IV)", quarter_not_month = true)
+	 @assert Dates.Date(1948, 10, 1) == string_to_date("November 1948(IV)", quarter_not_month = true)
 
-      # Apply this function to peaks and troughs, in quarters and in months
-      peaks_months = map(string_to_date, data[:NBER_peaks][:values]);
-      troughs_months = map(string_to_date, data[:NBER_troughs][:values]);
-      peaks_quarters = map(string_to_date_quarter, data[:NBER_peaks][:values]);
-      troughs_quarters = map(string_to_date_quarter, data[:NBER_troughs][:values]);
+	 # Apply this function to peaks and troughs, in quarters and in months
+	 peaks_months = map(string_to_date, data[:NBER_peaks][:values]);
+	 troughs_months = map(string_to_date, data[:NBER_troughs][:values]);
+
+   # Problem! this next line fails with an error but is silenced by the colon
+
+	 peaks_quarters = map(string_to_date, data[:NBER_peaks][:values], quarter_to_month = true);
+   @assert false
+	 troughs_quarters = map(string_to_date_quarter, data[:NBER_troughs][:values]);
  #+END_SRC
 
  #+RESULTS:
@@ -161,7 +165,6 @@ using Gallium # For debugging in the REPL
 
 
  #+end_example
-
 
 
 ** Figure 1
