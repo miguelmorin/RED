@@ -1,0 +1,14 @@
+
+*.asv
+.DS_Store
+*.Rproj.user*
+.Rproj.user
+.Rbuildignore
+.juliahistory
+\#*.*\#
+.\#*.*
+*.*~
+*.pdf
+*.tex
+*.html
+*.jl

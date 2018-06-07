@@ -1,0 +1,224 @@
+#+Title: Computer adoption and the changing labor market
+#+Date: 2018-06-01
+
+* RED
+#+PROPERTY: header-args:julia :results output
+
+:PROPERTIES:
+:header-args: :tangle RED.jl
+:END:
+
+** Julia settings
+
+ Run this source code block once per system to install packages, removing first `:eval never`. Running it every time slows things down.
+ #+BEGIN_SRC julia :results output
+ Pkg.add("Gadfly")
+ Pkg.add("CSV")
+Pkg.add("Gallium")
+ #+END_SRC
+
+ #+RESULTS:
+
+ Run this source code block once per session.
+ #+BEGIN_SRC julia :results output :session :tangle yes
+ using DataFrames
+ using CSV
+using Gallium # For debugging in the REPL
+ #+END_SRC
+
+ #+RESULTS:
+ : INFO: Recompiling stale cache file /Users/mmorin/.julia/lib/v0.6/CodecZlib.ji for module CodecZlib.
+ : INFO: Recompiling stale cache file /Users/mmorin/.julia/lib/v0.6/DataFrames.ji for module DataFrames.
+ : INFO: Recompiling stale cache file /Users/mmorin/.julia/lib/v0.6/CSV.ji for module CSV.
+
+** Data settings
+
+ Download the following data from the St Louis Fed, or use the ones saved locally in CSV:
+ - [GDP](https://fred.stlouisfed.org/series/GDPC1)
+ - [payroll emploment](https://fred.stlouisfed.org/series/PAYEMS)
+
+ Copy-past the NBER peaks and troughs from [[http://www.nber.org/cycles.html][NBER business cycle dating]], or use the ones saved locally in TXT:
+ - NBER_peaks.txt
+ - NBER_troughs.txt
+
+ #+begin_src julia :results output :session :tangle yes
+       data_folder = "data";
+
+       # Verify hashes of files, otherwise things may change inadvertently
+       list_filenames = Dict("GDPC1.csv" => 18406736056617138266,
+			      "PAYEMS.csv" => 13819066176910162213,
+			     "NBER_peaks.txt" => 4901701600789099464,
+			     "NBER_troughs.txt" => 14025698590750588114);
+       data = Dict();
+       for filename in keys(list_filenames)
+	   filepath = joinpath(data_folder, filename)
+	   #println(filename)
+	   #println(hash(readstring(filepath)))
+	   @assert list_filenames[filename] == hash(readstring(filepath))
+
+	   # Start loading data at the second line if it's CSV, otherwise at the first line
+	   csv_file = endswith(filename, ".csv")
+
+     # Load CSV
+	   df = CSV.read(filepath, datarow = csv_file ? 2 : 1)
+
+	 # CSV.read already converts the date column to Date, and verify that here
+	   if csv_file
+	       @assert Date == typeof(df[:DATE][1])
+	   else
+	     # Change name from :Column1 to :values
+	     rename!(df, :Column1 => :values)
+	   end
+
+	   # Convert to symbol without the dot
+	   symbol_name = replace(filename,  r"(^[^.]*)(\..*$)", s"\1")
+	   println("Loaded " * symbol_name * "...")
+
+	 # Add to data dictionary
+   data[Symbol(symbol_name)] = df
+       end
+ #+end_src
+
+ #+RESULTS:
+ : 
+ : 
+ : 
+ : 
+ : 
+ : Loaded GDPC1...
+ : Loaded NBER_peaks...
+ : Loaded PAYEMS...
+ : Loaded NBER_troughs...
+
+** Business cycle dating functions
+
+ This block converts NBER dates in text-form into Julia dates, and applies the transformation to NBER peaks and troughs.
+
+ #+BEGIN_SRC julia :session :results output :tangle yes
+	  # Build dictionary from month names to integers
+	  MONTHTOVALUE = Dict{String, Integer}();
+	  for i in 1:12
+	      month = Dates.format(Date(1990, i, 1), "U")
+	      MONTHTOVALUE[month] = i
+	  end;
+
+	# Same approach for converting quarters into months:
+	QUARTERSTOMONTH = Dict("I" => 1, "II" => 4, "III" => 7, "IV" => 10);
+
+	  # Regular expression for date in the format [Month Year(Quarter)]
+	  date_regex = r"(^[A-Z][a-z]*) ?(\d{4}) ?\((I*V?)\)";
+	  function string_to_date(date_string; quarter_not_month = false)
+
+	      year = parse(Int, replace(date_string, date_regex, s"\2"))
+
+
+	    if (quarter_not_month)
+	      quarter_string = replace(date_string, date_regex, s"\3")
+	      month = QUARTERSTOMONTH[quarter_string]
+	    else
+	      month = MONTHTOVALUE[replace(date_string, date_regex, s"\1")]      
+	    end
+
+	      return Dates.Date(year, month, 1)
+	  end;
+
+   function string_to_date_quarter(date_string)
+    return string_to_date(date_string, quarter_not_month = true)
+   end;
+	  @assert Dates.Date(1860, 10, 1) == string_to_date("October 1860(III)")
+      @assert Dates.Date(2007, 12, 1) == string_to_date("December 2007 (IV)")
+      @assert Dates.Date(2007, 10, 1) == string_to_date("December 2007 (IV)", quarter_not_month = true)
+      @assert Dates.Date(1948, 10, 1) == string_to_date("November 1948(IV)", quarter_not_month = true)
+
+      # Apply this function to peaks and troughs, in quarters and in months
+      peaks_months = map(string_to_date, data[:NBER_peaks][:values]);
+      troughs_months = map(string_to_date, data[:NBER_troughs][:values]);
+      peaks_quarters = map(string_to_date_quarter, data[:NBER_peaks][:values]);
+      troughs_quarters = map(string_to_date_quarter, data[:NBER_troughs][:values]);
+ #+END_SRC
+
+ #+RESULTS:
+ #+begin_example
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ #+end_example
+
+
+
+** Figure 1
+ Payroll employment is slower to recover after the last three recessions, compared to a given recovery of output of 5%.
+
+ #+BEGIN_SRC julia :session :results output :tangle yes
+      recovery = 0.05
+   gdp_df = data[:GDPC1]
+
+	   # Iterate on peaks
+	 for peak in peaks_quarters
+
+	   # Focus on post-war period
+	   if 1945 >= Dates.year(peak)
+	     continue
+	   end
+
+	   # Get the corresponding trough, right after this peak
+	   trough = nothing
+	   for trough_local in troughs_quarters
+	     if (trough_local > peak)
+	       trough = trough_local
+	       break
+	     end
+	   end
+
+	   # Get the index in the GDP DataFrame
+	   peak_index_gdp_results = find(x -> x == peak, gpd_df[:DATE])
+	   @assert 1 == length(peak_index_gdp_results)
+	   peak_index_gdp = peak_index_gdp_results[1]
+
+	  # Find the bracket of time by which GDP has recovered by x%, so with
+	     # interpolation we'll find the time by which it has recovered exactly by 5%
+   #       gdp_above = gdp_df[:
+          @assert false
+
+	   println(peak, " - ", trough, " - ", peak_index_gdp)
+	 end
+ #+END_SRC
+
+ #+RESULTS:
+ #+begin_example
+
+ 1948-10-01 - 1949-10-01 - 8
+ 1953-04-01 - 1954-04-01 - 26
+ 1957-07-01 - 1958-04-01 - 43
+ 1960-04-01 - 1961-01-01 - 54
+ 1969-10-01 - 1970-10-01 - 92
+ 1973-10-01 - 1975-01-01 - 108
+ 1980-01-01 - 1980-07-01 - 133
+ 1981-07-01 - 1982-10-01 - 139
+ 1990-07-01 - 1991-01-01 - 175
+ 2001-01-01 - 2001-10-01 - 217
+ 2007-10-01 - 2009-04-01 - 244
+ #+end_example
+
+ #+RESULTS:
+
+ [[file:~/130501_recoveries_payroll.jpg]]
+ #+RESULTS:
