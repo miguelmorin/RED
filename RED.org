@@ -1,100 +1,10 @@
 #+Title: Computer adoption and the changing labor market
 #+Date: 2018-06-01
 
-* RED
-#+PROPERTY: header-args:julia :results output
-
-:PROPERTIES:
-:header-args: :tangle RED.jl
-:END:
-
-** Julia settings
-
- Run this source code block once per system to install packages, removing first `:eval never`. Running it every time slows things down.
- #+BEGIN_SRC julia :results output
-   Pkg.add("Gadfly")
-   Pkg.add("CSV")
-   Pkg.add("Gallium")
- #+END_SRC
-
- #+RESULTS:
-
- Run this source code block once per session.
- #+BEGIN_SRC julia :results output :session :tangle yes
-   using DataFrames
-   using CSV
-   using Gallium # For debugging in the REPL
- #+END_SRC
-
- #+RESULTS:
- : 
- : 
-
-** Data functions
+* Data functions
 
 #+BEGIN_SRC julia :session :results output :tangle yes
 
-    """
-    month_to_quarter(date::Date)
-
-    Returns the date corresponding to the first day of the quarter enclosing date
-
-    #Examples
-    ```jldoctest
-    julia> Date(1990, 1, 1) == month_to_quarter(Date(1990, 2, 1))
-    true
-    julia> Date(1990, 1, 1) == month_to_quarter(Date(1990, 1, 1))
-    true
-    julia> Date(1990, 1, 1) == month_to_quarter(Date(1990, 2, 25))
-    true
-    ```
-    """
-
-    function month_to_quarter(date::Date)
-      new_month = 1 + 3 * floor((Dates.month(date) - 1) / 3)
-      return Date(Dates.year(date), new_month, 1)
-    end
-
-
-
-	    """
-		monthly_to_quarterly(monthly_df)
-
-	      Aggregates a monthly data frame to the quarterly frequency. The data frame should have a :DATE column.
-
-	    # Examples
-	    ```jldoctest
-	    julia> monthly = convert(DataFrame, [collect([Dates.Date(1990, m, 1) for m in 1..3]); 1, 2, 3]);
-	julia> rename!(monthly, :x1 => :DATE)
-	julia> rename!(monthly, :x2 => :value)
-	  julia> quarterly = monthly_to_quarterly(monthly)
-	julia> quarterly[:value][1]
-	6
-	julia> length(quarterly[:value])
-	1
-	    ```
-
-	    function monthly_to_quarterly(monthly::DataFrame)
-	      # Deep copy the data frame
-	      monthly_copy = deepcopy(monthly)
-
-	      # Drop initial rows until it starts on a quarter
-		while !in(Dates.month(monthly_copy[:DATE][1]), quarter_months)
-		  monthly_copy = monthly_copy[2:end, :]
-		end
-
-      # Drop end rows until it finishes before a quarter
-      while !in(Dates.month(monthly_copy[:DATE][end]), 2 + quarter_months)
-	monthly_copy = monthly_copy[1:end-1, :]
-      end
-
-    # Change month of each date to the nearest quarter
-  #  monthly_copy[:DATE] = monthly_copy[
-
-		return nothing
-
-	    end
-		  """
 #+END_SRC
 
 #+RESULTS:

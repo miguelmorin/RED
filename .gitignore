@@ -11,3 +11,4 @@
 *.pdf
 *.tex
 *.html
+docs/build/*
