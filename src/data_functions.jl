@@ -1,9 +1,10 @@
 #using Gallium
 #using DataFrames
 
-export monthly_to_quarterly
+#export monthly_to_quarterly
 export nber_string_to_date
 export nber_string_to_date_quarter
+export load_data
 export compute_recovery_of_employment_at_given_recovery_of_output
 
 """
@@ -131,6 +132,39 @@ function nber_string_to_date_quarter(date_string)
     return nber_string_to_date(date_string, quarter_not_month = true)
 end
 
+
+
+function load_data(list_filenames::Dict{String, Integer})
+    data = Dict();
+    for filename in keys(list_filenames)
+        filepath = joinpath(data_folder, filename)
+        #println(filename)
+        #println(hash(readstring(filepath)))
+        @assert list_filenames[filename] == hash(readstring(filepath))
+
+        # Start loading data at the second line if it's CSV, otherwise at the first line
+        csv_file = endswith(filename, ".csv")
+
+        # Load CSV
+        df = CSV.read(filepath, datarow = csv_file ? 2 : 1)
+
+        # CSV.read already converts the date column to Date, and verify that here
+        if csv_file
+	    @assert Date == typeof(df[:DATE][1])
+        else
+	    # Change name from :Column1 to :value
+	    rename!(df, :Column1 => :value)
+        end
+
+        # Convert to symbol without the dot
+        symbol_name = replace(filename,  r"(^[^.]*)(\..*$)", s"\1")
+        println("loaded " * symbol_name)
+
+        # Add to data dictionary
+        data[Symbol(symbol_name)] = df
+    end
+    return data
+end
 
 """
     get_loading_below(; below, above, targete)

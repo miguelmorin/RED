@@ -1,4 +1,6 @@
 
+workspace()
+
 # Import RED module with functions
 
 include("src/RED.jl")
@@ -25,34 +27,10 @@ list_filenames = Dict("GDPC1.csv" => 18406736056617138266,
 		      "PAYEMS.csv" => 13819066176910162213,
 		      "NBER_peaks.txt" => 4901701600789099464,
 		      "NBER_troughs.txt" => 14025698590750588114);
-data = Dict();
-for filename in keys(list_filenames)
-    filepath = joinpath(data_folder, filename)
-    #println(filename)
-    #println(hash(readstring(filepath)))
-    @assert list_filenames[filename] == hash(readstring(filepath))
 
-    # Start loading data at the second line if it's CSV, otherwise at the first line
-    csv_file = endswith(filename, ".csv")
-
-    # Load CSV
-    df = CSV.read(filepath, datarow = csv_file ? 2 : 1)
-
-    # CSV.read already converts the date column to Date, and verify that here
-    if csv_file
-	@assert Date == typeof(df[:DATE][1])
-    else
-	# Change name from :Column1 to :value
-	rename!(df, :Column1 => :value)
-    end
-
-    # Convert to symbol without the dot
-    symbol_name = replace(filename,  r"(^[^.]*)(\..*$)", s"\1")
-    println("loaded " * symbol_name)
-
-    # Add to data dictionary
-    data[Symbol(symbol_name)] = df
-end
+# Problem: why is load_data not defined??
+@assert false
+data = load_data(list_filenames)
 
 # Aggregate monthly to quarterly
 data[:PAYEMS_Q] = monthly_to_quarterly(data[:PAYEMS], :PAYEMS);
