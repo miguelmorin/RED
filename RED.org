@@ -10,8 +10,11 @@ using DataFrames
 #+END_SRC
 
 #+RESULTS:
+: WARNING: replacing module RED
 : RED
-: 
+: WARNING: using RED.nber_string_to_date in module Main conflicts with an existing identifier.
+: WARNING: using RED.nber_string_to_date_quarter in module Main conflicts with an existing identifier.
+: WARNING: using RED.monthly_to_quarterly in module Main conflicts with an existing identifier.
 
 ** Data settings
 
@@ -92,18 +95,20 @@ This block converts NBER dates in text-form into Julia dates for NBER peaks and 
 
 # TODO: finish here, and find a better workflow too, because this Org-mode is painful
 
-   peaks_months = map(nber_string_to_date, data[:NBER_peaks][:value])
-   troughs_months = map(nber_string_to_date, data[:NBER_troughs][:value])
-   peaks_quarters = map(nber_string_to_date_quarter, data[:NBER_peaks][:value])
-   troughs_quarters = map(nber_string_to_date_quarter, data[:NBER_troughs][:value])
+   peaks_months = map(nber_string_to_date, data[:NBER_peaks][:value]);
+   troughs_months = map(nber_string_to_date, data[:NBER_troughs][:value]);
+   peaks_quarters = map(nber_string_to_date_quarter, data[:NBER_peaks][:value]);
+   troughs_quarters = map(nber_string_to_date_quarter, data[:NBER_troughs][:value]);
  #+END_SRC
 
  #+RESULTS:
  : 
- : ERROR: UndefVarError: nber_string_to_date not defined
- : ERROR: UndefVarError: nber_string_to_date not defined
- : ERROR: UndefVarError: nber_string_to_date_quarter not defined
- : ERROR: UndefVarError: nber_string_to_date_quarter not defined
+ : 
+ : 
+ : 
+ : 
+ : 
+ : 
 
 
 ** Figure 1
@@ -142,7 +147,8 @@ This block converts NBER dates in text-form into Julia dates for NBER peaks and 
 
 
 
- ERROR: UndefVarError: peaks_quarters not defined
+ WARNING: both RED and RED export "compute_recovery_of_employment_at_given_recovery_of_output"; uses of it in module Main must be qualified
+ ERROR: UndefVarError: compute_recovery_of_employment_at_given_recovery_of_output not defined
  #+end_example
 
  #+RESULTS:
