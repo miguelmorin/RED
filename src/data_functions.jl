@@ -32,7 +32,8 @@ end
 """ 
     monthly_to_quarterly(monthly_df)
 
-Aggregates a monthly data frame to the quarterly frequency. The data frame should have a :DATE column.
+Aggregates a monthly data frame to the quarterly frequency. The data frame should have a :DATE column
+and a :value column.
 
 # Examples
 ```jldoctest
@@ -51,8 +52,10 @@ julia> length(quarterly[:value])
 1
 ```
 """
-function monthly_to_quarterly(monthly::DataFrame, column::Symbol)
+function monthly_to_quarterly(monthly::DataFrame)
 
+    @assert [:DATE, :value] == names(monthly) ("Expected two columns, :DATE and :value, not " * string(names(monthly)))
+    
     # quarter months: 1, 4, 7, 10
     quarter_months = collect(1:3:10)
     
@@ -77,10 +80,10 @@ function monthly_to_quarterly(monthly::DataFrame, column::Symbol)
     monthly_copy[:DATE] = month_to_quarter.(monthly_copy[:DATE])
 
     # Split-apply-combine
-    quarterly = by(monthly_copy, :DATE, df -> mean(df[column]))
+    quarterly = by(monthly_copy, :DATE, df -> mean(df[:value]))
 
     # Rename
-    rename!(quarterly, :x1 => column)
+    rename!(quarterly, :x1 => :value)
 
     return quarterly
     
@@ -138,9 +141,11 @@ function load_data_from_list(; list_filenames::Dict{String, Integer} = nothing, 
     data = Dict();
     for filename in keys(list_filenames)
         filepath = joinpath(data_folder, filename)
-        #println(filename)
-        #println(hash(readstring(filepath)))
-        @assert list_filenames[filename] == hash(readstring(filepath))
+
+        # Check the hash
+        expected_hash = list_filenames[filename]
+        found_hash = hash(readstring(filepath))
+        @assert expected_hash == found_hash ("File " * filename * " has a different hash.\nExpected: " * string(expected_hash) * "\nFound: " * string(found_hash))
 
         # Start loading data at the second line if it's CSV, otherwise at the first line
         csv_file = endswith(filename, ".csv")
@@ -151,6 +156,7 @@ function load_data_from_list(; list_filenames::Dict{String, Integer} = nothing, 
         # CSV.read already converts the date column to Date, and verify that here
         if csv_file
 	    @assert Date == typeof(df[:DATE][1])
+	    rename!(df, names(df)[2] => :value)
         else
 	    # Change name from :Column1 to :value
 	    rename!(df, :Column1 => :value)
@@ -254,7 +260,7 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
                                                                     troughs::Array{Date} = nothing)
 
     # Initialize at empty
-    recoveries = DataFrame(DATE = Date[],
+    recoveries = DataFrame(year = Integer[],
                            recovery = Number[])
 
     # Iterate on peaks
@@ -303,7 +309,7 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
 	gdp_recovery_below_index = gdp_recovery_above_index - 1
 	gdp_recovery_below = gdp_df[:log][gdp_recovery_below_index] - gdp_df[:log][gdp_trough_index]
 
-	# Calculate loadings on the GDP recovery below and above, so the
+	# Calculate loaidngs on the GDP recovery below and above, so the
 	# interpolation gives 5% exactly
 	# println(peak, "-", trough, " - ", " - ", gdp_recovery_below, " - ", gdp_recovery_above)
 	loading_below = get_loading_below(below = gdp_recovery_below, above = gdp_recovery_above, target = recovery_target_log)
@@ -321,8 +327,13 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
 
 	emp_recovery = loading_below * emp_recovery_below + (1 - loading_below) * emp_recovery_above
 
+        if (2001 == Dates.year(peak))
+            println(string(gdp_recovery_above_date) * " - " * string(emp_df[:log][emp_recovery_above_index]))
+            
+        end
+        
         # Append to recoveries DataFrame
-        recoveries = vcat(recoveries, DataFrame(DATE = peak, recovery = emp_recovery))
+        recoveries = vcat(recoveries, DataFrame(year = Dates.year(peak), recovery = emp_recovery))
 
     end
     return recoveries
