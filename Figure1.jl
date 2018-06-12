@@ -2,12 +2,11 @@
 workspace()
 
 # Import RED module with functions
-
 include("src/RED.jl")
 
 # Use this and other modules
 using RED
-using DataFrames
+#using DataFrames
 
 
 """
@@ -23,14 +22,12 @@ using DataFrames
 data_folder = "data";
 
 # Verify hashes of files, otherwise things may change inadvertently
-list_filenames = Dict("GDPC1.csv" => 18406736056617138266,
+list_filenames = Dict{String, Integer}("GDPC1.csv" => 18406736056617138266,
 		      "PAYEMS.csv" => 13819066176910162213,
 		      "NBER_peaks.txt" => 4901701600789099464,
 		      "NBER_troughs.txt" => 14025698590750588114);
 
-# Problem: why is load_data not defined??
-@assert false
-data = load_data(list_filenames)
+data = load_data_from_list(list_filenames = list_filenames, data_folder = data_folder)
 
 # Aggregate monthly to quarterly
 data[:PAYEMS_Q] = monthly_to_quarterly(data[:PAYEMS], :PAYEMS);

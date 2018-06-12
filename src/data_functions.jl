@@ -4,7 +4,8 @@
 #export monthly_to_quarterly
 export nber_string_to_date
 export nber_string_to_date_quarter
-export load_data
+export monthly_to_quarterly
+export load_data_from_list
 export compute_recovery_of_employment_at_given_recovery_of_output
 
 """
@@ -133,8 +134,7 @@ function nber_string_to_date_quarter(date_string)
 end
 
 
-
-function load_data(list_filenames::Dict{String, Integer})
+function load_data_from_list(; list_filenames::Dict{String, Integer} = nothing, data_folder = nothing)
     data = Dict();
     for filename in keys(list_filenames)
         filepath = joinpath(data_folder, filename)
