@@ -1,7 +1,7 @@
 # RED.jl Documentation
 
 ```@meta
-CurrentModuel = RED
+CurrentModule = RED
 DocTestSetup = quote
 	using DataFrames
 	using RED

@@ -2,6 +2,8 @@
 #using DataFrames
 
 export monthly_to_quarterly
+export nber_string_to_date
+export nber_string_to_date_quarter
 export compute_recovery_of_employment_at_given_recovery_of_output
 
 """
@@ -122,13 +124,11 @@ function nber_string_to_date(date_string::String; quarter_not_month::Bool = fals
 end
 
 """
-    string_to_date_quarter(date_string)
-
 Convert NBER date string to Julia Date and align it to a quarter
 
 """
-function string_to_date_quarter(date_string)
-    return string_to_date(date_string, quarter_not_month = true)
+function nber_string_to_date_quarter(date_string)
+    return nber_string_to_date(date_string, quarter_not_month = true)
 end
 
 
@@ -191,14 +191,14 @@ Compute the recovery of employment at a given recovery of output
 # Examples
 ```jldoctest
 julia> dates = collect([Dates.Date(2001, m, 1) for m in 1:3:10]);
-julia> assert False
+
 julia> gdp = [1; 0; 1; 2];
 
 julia> emp = [1; 0; 0.5; 1];
 
-julia> gdp_df = DataFrame(DATE = dates, log = gdp)
+julia> gdp_df = DataFrame(DATE = dates, log = gdp);
 
-julia> emp_df = DataFrame(DATE = dates, log = emp)
+julia> emp_df = DataFrame(DATE = dates, log = emp);
 
 julia> recovery_target_log = 1.5;
 
@@ -207,7 +207,10 @@ julia> peaks = [Dates.Date(2001, 1, 1)];
 julia> troughs = [Dates.Date(2001, 4, 1)];
 
 julia> compute_recovery_of_employment_at_given_recovery_of_output(gdp_df = gdp_df, emp_df = emp_df, recovery_target_log = recovery_target_log, peaks = peaks, troughs = troughs)
-
+1×2 DataFrames.DataFrame
+│ Row │ DATE       │ recovery │
+├─────┼────────────┼──────────┤
+│ 1   │ 2001-01-01 │ 0.75     │
 ```
 """
 function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::DataFrame = nothing,
@@ -232,7 +235,7 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
 
 	# Get the corresponding trough, right after this peak
 	trough = nothing
-	for trough_local in troughs_quarters
+	for trough_local in troughs
 	    if (trough_local > peak)
 		trough = trough_local
 		break
@@ -253,8 +256,8 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
         
 	# Skip if this recovery was cut short, i.e. if the date for the recovery index happens
 	# after the next peak
-	if (length(peaks_quarters) > i_peak)
-	    if (peaks_quarters[i_peak + 1] < gdp_df[:DATE][gdp_recovery_above_index])
+	if (length(peaks) > i_peak)
+	    if (peaks[i_peak + 1] < gdp_df[:DATE][gdp_recovery_above_index])
 		continue
 	    end
 	end
@@ -273,7 +276,7 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
 
 	@assert isapprox(recovery_target_log,
 			 loading_below * gdp_recovery_below + (1 - loading_below) * gdp_recovery_above,
-			 atol = eps(recovery))
+			 atol = eps(recovery_target_log))
         
 	# Get the index for employment at the trough and at recovery
 	emp_trough_index = get_unique_index(trough, emp_df[:DATE])
@@ -285,7 +288,7 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
 	emp_recovery = loading_below * emp_recovery_below + (1 - loading_below) * emp_recovery_above
 
         # Append to recoveries DataFrame
-        push!(recoveries, trough, emp_recovery)
+        recoveries = vcat(recoveries, DataFrame(DATE = peak, recovery = emp_recovery))
 
     end
     return recoveries

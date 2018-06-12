@@ -1,22 +1,17 @@
 #+Title: Computer adoption and the changing labor market
 #+Date: 2018-06-01
 
-* Data functions
+** Import RED module
 
 #+BEGIN_SRC julia :session :results output :tangle yes
-
+include("src/RED.jl")
+using RED
+using DataFrames
 #+END_SRC
 
 #+RESULTS:
+: RED
 : 
-: "month_to_quarter(date::Date)\n\nReturns the date corresponding to the first day of the quarter enclosing date\n\n#Examples\n```jldoctest\njulia> Date(1990, 1, 1) == month_to_quarter(Date(1990, 2, 1))\ntrue\njulia> Date(1990, 1, 1) == month_to_quarter(Date(1990, 1, 1))\ntrue\njulia> Date(1990, 1, 1) == month_to_quarter(Date(1990, 2, 25))\ntrue\n```\n"
-: 
-: month_to_quarter (generic function with 1 method)
-: 
-: 
-: 
-: "\t      monthly_to_quarterly(monthly_df)\n\n\t    Aggregates a monthly data frame to the quarterly frequency. The data frame should have a :DATE column.\n\n\t  # Examples\n\t  ```jldoctest\n\t  julia> monthly = convert(DataFrame, [collect([Dates.Date(1990, m, 1) for m in 1..3]); 1, 2, 3]);\n      julia> rename!(monthly, :x1 => :DATE)\n      julia> rename!(monthly, :x2 => :value)\n\tjulia> quarterly = monthly_to_quarterly(monthly)\n      julia> quarterly[:value][1]\n      6\n      julia> length(quarterly[:value])\n      1\n\t  ```\n\n\t  function monthly_to_quarterly(monthly::DataFrame)\n\t    # Deep copy the data frame\n\t    monthly_copy = deepcopy(monthly)\n\n\t    # Drop initial rows until it starts on a quarter\n\t      while !in(Dates.month(monthly_copy[:DATE][1]), quarter_months)\n\t\tmonthly_copy = monthly_copy[2:end, :]\n\t      end\n\n    # Drop end rows until it finishes before a quarter\n    while !in(Dates.month(monthly_copy[:DATE][end]), 2 + quarter_months)\n      monthly_copy = monthly_copy[1:end-1, :]\n    end\n\n  # Change month of each date to the nearest quarter\n#  monthly_copy[:DATE] = monthly_copy[\n\n\t      return nothing\n\n\t  end\n\t\t"
-
 
 ** Data settings
 
@@ -29,94 +24,47 @@
  - NBER_troughs.txt
 
  #+begin_src julia :results output :session :tangle yes
-       data_folder = "data";
+   data_folder = "data";
 
-       # Verify hashes of files, otherwise things may change inadvertently
-       list_filenames = Dict("GDPC1.csv" => 18406736056617138266,
-			      "PAYEMS.csv" => 13819066176910162213,
-			     "NBER_peaks.txt" => 4901701600789099464,
-			     "NBER_troughs.txt" => 14025698590750588114);
-       data = Dict();
-       for filename in keys(list_filenames)
-	   filepath = joinpath(data_folder, filename)
-	   #println(filename)
-	   #println(hash(readstring(filepath)))
-	   @assert list_filenames[filename] == hash(readstring(filepath))
+	    # Verify hashes of files, otherwise things may change inadvertently
+	    list_filenames = Dict("GDPC1.csv" => 18406736056617138266,
+				  "PAYEMS.csv" => 13819066176910162213,
+				  "NBER_peaks.txt" => 4901701600789099464,
+				  "NBER_troughs.txt" => 14025698590750588114);
+	    data = Dict();
+	    for filename in keys(list_filenames)
+		filepath = joinpath(data_folder, filename)
+		#println(filename)
+		#println(hash(readstring(filepath)))
+		@assert list_filenames[filename] == hash(readstring(filepath))
 
-	   # Start loading data at the second line if it's CSV, otherwise at the first line
-	   csv_file = endswith(filename, ".csv")
+		# Start loading data at the second line if it's CSV, otherwise at the first line
+		csv_file = endswith(filename, ".csv")
 
-     # Load CSV
-	   df = CSV.read(filepath, datarow = csv_file ? 2 : 1)
+		# Load CSV
+		df = CSV.read(filepath, datarow = csv_file ? 2 : 1)
 
-	 # CSV.read already converts the date column to Date, and verify that here
-	   if csv_file
-	       @assert Date == typeof(df[:DATE][1])
-	   else
-	     # Change name from :Column1 to :values
-	     rename!(df, :Column1 => :values)
-	   end
+		# CSV.read already converts the date column to Date, and verify that here
+		if csv_file
+		    @assert Date == typeof(df[:DATE][1])
+		else
+		    # Change name from :Column1 to :value
+		    rename!(df, :Column1 => :value)
+		end
 
-	   # Convert to symbol without the dot
-	   symbol_name = replace(filename,  r"(^[^.]*)(\..*$)", s"\1")
-	   println("Loaded " * symbol_name * "...")
+		# Convert to symbol without the dot
+		symbol_name = replace(filename,  r"(^[^.]*)(\..*$)", s"\1")
+		println("loaded " * symbol_name)
 
-	 # Add to data dictionary
-   data[Symbol(symbol_name)] = df
-       end
+		# Add to data dictionary
+		data[Symbol(symbol_name)] = df
+	    end
+
+	 # Aggregate monthly to quarterly
+      data[:PAYEMS_Q] = monthly_to_quarterly(data[:PAYEMS], :PAYEMS);
+   println("converted employment to quarterly")
+
  #+end_src
-
- #+RESULTS:
- : 
- : 
- : 
- : 
- : 
- : Loaded GDPC1...
- : Loaded NBER_peaks...
- : Loaded PAYEMS...
- : Loaded NBER_troughs...
-
-** Business cycle dating functions
-
- This block converts NBER dates in text-form into Julia dates, and applies the transformation to NBER peaks and troughs.
-
- #+BEGIN_SRC julia :session :results output :tangle yes
-   # Build dictionary for converting quarters into months:
-   quarters_to_month = Dict("I" => 1, "II" => 4, "III" => 7, "IV" => 10);
-
-   # Regular expression for date in the format [Month Year(Quarter)]
-   date_regex = r"(^[A-Z][a-z]*) ?(\d{4}) ?\((I*V?)\)";
-   function string_to_date(date_string; quarter_not_month = false)
-
-       year = parse(Int, replace(date_string, date_regex, s"\2"))
-
-
-       if (quarter_not_month)
-	   quarter_string = replace(date_string, date_regex, s"\3")
-	   month = quarters_to_month[quarter_string]
-       else
-	   month_string = replace(date_string, date_regex, s"\1")
-	   month = Dates.monthname_to_value(month_string, Dates.LOCALES["english"])
-       end
-
-       return Dates.Date(year, month, 1)
-   end;
-
-   function string_to_date_quarter(date_string)
-    return string_to_date(date_string, quarter_not_month = true)
-   end;
-   @assert Dates.Date(1860, 10, 1) == string_to_date("October 1860(III)")
-   @assert Dates.Date(2007, 12, 1) == string_to_date("December 2007 (IV)")
-   @assert Dates.Date(2007, 10, 1) == string_to_date("December 2007 (IV)", quarter_not_month = true)
-   @assert Dates.Date(1948, 10, 1) == string_to_date("November 1948(IV)", quarter_not_month = true)
-
-   # Apply this function to peaks and troughs, in quarters and in months
-   peaks_months = map(string_to_date, data[:NBER_peaks][:values]);
-   troughs_months = map(string_to_date, data[:NBER_troughs][:values]);
-   peaks_quarters = map(string_to_date_quarter, data[:NBER_peaks][:values]);
-   troughs_quarters = map(string_to_date_quarter, data[:NBER_troughs][:values]);
- #+END_SRC
 
  #+RESULTS:
  #+begin_example
@@ -125,110 +73,60 @@
 
 
 
+ loaded GDPC1
+ loaded NBER_peaks
+ loaded PAYEMS
+ loaded NBER_troughs
 
 
 
-
-
-
-
-
-
-
-
-
+ converted employment to quarterly
  #+end_example
+
+** Business cycle dates
+
+This block converts NBER dates in text-form into Julia dates for NBER peaks and troughs.
+
+ #+BEGIN_SRC julia :session :results output :tangle yes
+   # Apply this function to peaks and troughs, in quarters and in months
+
+# TODO: finish here, and find a better workflow too, because this Org-mode is painful
+
+   peaks_months = map(nber_string_to_date, data[:NBER_peaks][:value])
+   troughs_months = map(nber_string_to_date, data[:NBER_troughs][:value])
+   peaks_quarters = map(nber_string_to_date_quarter, data[:NBER_peaks][:value])
+   troughs_quarters = map(nber_string_to_date_quarter, data[:NBER_troughs][:value])
+ #+END_SRC
+
+ #+RESULTS:
+ : 
+ : ERROR: UndefVarError: nber_string_to_date not defined
+ : ERROR: UndefVarError: nber_string_to_date not defined
+ : ERROR: UndefVarError: nber_string_to_date_quarter not defined
+ : ERROR: UndefVarError: nber_string_to_date_quarter not defined
 
 
 ** Figure 1
  Payroll employment is slower to recover after the last three recessions, compared to a given recovery of output of 5%.
 
  #+BEGIN_SRC julia :session :results output :tangle yes
-   # Function to calculate the loading to place on two time periods
-   # to compute a synthetic time period at a given value with linear interpolation
-   function get_loading_below(; below = throw(ArgumentError("must pass below")),
-			      above = throw(ArgumentError("must pass above")),
-			      target = throw(ArgumentError("must pass target")))
-       # Verify that all are positive
-       @assert 0 < above
-       @assert 0 < below
-       @assert 0 < target
-
-       # Verify the ordering: below < recovery < above
-       @assert below < target
-       @assert target < above
-
-       return (above - target) / (above - below)
-   end;
-
-   @assert isapprox(0.5, get_loading_below(4, 6, 5), atol = eps(0.5))
-   @assert isapprox(0.75, get_loading_below(2, 10, 4), atol = eps(0.25))
 
    recovery_target_log = log(1 + 0.05);
 
    # Shortcut to GDP DataFrame with logs
-   gdp_df[:log] = log.(data[:GDPC1][:GDPC1]);
+   gdp_df = deepcopy(data[:GDPC1]);
+   gdp_df[:log] = log.(gdp_df[:GDPC1]);
 
-   # Iterate on peaks
-   for peak_tuple in enumerate(peaks_quarters)
-       i_peak = peak_tuple[1]
-       peak = peak_tuple[2]
+   # Shortcut to employment DataFrame with logs
+   emp_df = deepcopy(data[:PAYEMS_Q]);
+   emp_df[:log] = log.(emp_df[:PAYEMS]);
 
-       # Focus on post-war period
-       if 1945 >= Dates.year(peak)
-	   continue
-       end
+   recoveries = compute_recovery_of_employment_at_given_recovery_of_output(gdp_df = gdp_df,
+									    emp_df = emp_df,
+									    recovery_target_log = recovery_target_log,
+									    peaks = peaks_quarters,
+									    troughs = troughs_quarters)
 
-       # Get the corresponding trough, right after this peak
-       trough = nothing
-       for trough_local in troughs_quarters
-	   if (trough_local > peak)
-	       trough = trough_local
-	       break
-	   end
-       end
-
-       # Get the index in the GDP DataFrame
-       gdp_trough_index_results = find(x -> x == trough, gdp_df[:DATE]);
-       @assert 1 == length(gdp_trough_index_results)
-       gdp_trough_index = gdp_trough_index_results[1]
-
-       # Find the bracket of time by which GDP has recovered by x%, so with
-       # interpolation we'll find the time by which it has recovered exactly by 5%
-       index_after = gdp_df[:DATE] .> gdp_df[:DATE][gdp_trough_index]
-       index_recovery = gdp_df[:log] .>= gdp_df[:log][gdp_trough_index] + recovery_target_log
-       gdp_recovery_above_indices = find(index_after .& index_recovery)
-       @assert 1 <= length(gdp_recovery_above_indices)
-       gdp_recovery_above_index = gdp_recovery_above_indices[1]
-
-       # Skip if this recovery was cut short, i.e. if the date for the recovery index happens
-       # after the next peak
-       if (length(peaks_quarters) > i_peak)
-	   if (peaks_quarters[i_peak + 1] < gdp_df[:DATE][gdp_recovery_above_index])
-	       continue
-	   end
-       end
-
-       # Amount of recovery at this index
-       gdp_recovery_above = gdp_df[:log][gdp_recovery_above_index] - gdp_df[:log][gdp_trough_index]
-
-       # Same shortcuts for right below the recovery point
-       gdp_recovery_below_index = gdp_recovery_above_index - 1
-       gdp_recovery_below = gdp_df[:log][gdp_recovery_below_index] - gdp_df[:log][gdp_trough_index]
-
-       # Calculate loadings on the GDP recovery below and above, so the
-       # interpolation gives 5% exactly
-       println(peak, "-", trough, " - ", " - ", gdp_recovery_below, " - ", gdp_recovery_above)
-       loading_below = get_loading_below(below = gdp_recovery_below, above = gdp_recovery_above, target = recovery_target_log)
-
-       @assert isapprox(recovery_target_log,
-			loading_below * gdp_recovery_below + (1 - loading_below) * gdp_recovery_above,
-			atol = eps(recovery))
-
-    # TODO: deal with employment, aggregating and getting the loading too
-
-
-   end
  #+END_SRC
 
  #+RESULTS:
@@ -237,8 +135,6 @@
 
 
 
- ERROR: MethodError: no method matching get_loading_below(::Int64, ::Int64, ::Int64)
- ERROR: MethodError: no method matching get_loading_below(::Int64, ::Int64, ::Int64)
 
 
 
@@ -247,8 +143,6 @@
 
 
  ERROR: UndefVarError: peaks_quarters not defined
- Stacktrace:
-  [1] anonymous at ./<missing>:?
  #+end_example
 
  #+RESULTS:
