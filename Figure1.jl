@@ -36,7 +36,8 @@ data_folder = "data";
 monthly_data_hashes = Dict{String, Integer}("PAYEMS.csv" => 13819066176910162213,
                                             "LNS12000001.csv" => 16424143318742204293,
                                             "LNS12000002.csv" => 15988222264250118898,
-                                            "GDPC1.csv" => 18406736056617138266)
+                                            "GDPC1.csv" => 18406736056617138266,
+                                            "CE16OV.csv" => 4591378615148281314)
 
 # Load monthly data
 quarterly_data = RED.load_quarterly_data_from_list(list_filenames_hashes = monthly_data_hashes,
@@ -52,7 +53,7 @@ nber_cycles = RED.load_nber_cycles(nber_data_hashes = nber_data_hashes, data_fol
 recovery_target_log = log(1 + 0.05);
 
 gdp_symbol = :GDPC1
-emp_symbol = :LNS12000001
+emp_symbol = :PAYEMS
 
 gdp_log_symbol = Symbol(string(gdp_symbol) * "_log")
 emp_log_symbol = Symbol(string(emp_symbol) * "_log")
@@ -91,8 +92,8 @@ after_minus = after_average - interval_factor * after_sd
 @assert isapprox(2 * interval_factor * before_sd, before_plus - before_minus)
 @assert isapprox(2 * interval_factor * after_sd, after_plus - after_minus)
 
+println(emp_symbol)
 
-#p =
 plot(recoveries,
      x = 1,
      y = 2,
@@ -105,4 +106,7 @@ plot(recoveries,
                   after_average, after_plus, after_minus],
      slope = [0, 0, 0, 0, 0, 0, 0],
      Geom.abline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
-                 style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]))
+                 style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]),
+     Guide.ylabel("Employment recovery for given recovery of output (%)", orientation = :vertical),
+     Guide.xlabel("Peak year"),
+     style(major_label_font_size = 10pt))

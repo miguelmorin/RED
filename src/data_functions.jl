@@ -135,7 +135,7 @@ end
 function filepath_hash_to_df(; filepath = nothing, expected_hash = nothing)
     # Check the hash
     found_hash = hash(readstring(filepath))
-    @assert expected_hash == found_hash ("File " * filename * " has a different hash.\nExpected: " * string(expected_hash) * "\nFound: " * string(found_hash))
+    @assert expected_hash == found_hash ("Filepath " * filepath * " has a different hash.\nExpected: " * string(expected_hash) * "\nFound: " * string(found_hash))
 
     # Start loading data at the second line if it's CSV, otherwise at the first line
     csv_file = endswith(filepath, ".csv")
@@ -359,13 +359,13 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
 
 	emp_recovery = loading_below * emp_recovery_below + (1 - loading_below) * emp_recovery_above
 
-        """
+        
         if (2001 == Dates.year(peak))
             recovery_above_date = df[:DATE][recovery_above_index]
-            println(string(gdp_recovery_above_date) * " - " * string(emp_df[:log][recovery_above_index]))
+            println("Loading = " * string(loading_below) * ", " * string(recovery_above_date) * " - " * string(df[emp_log_column][recovery_above_index]))
             
         end
-        """
+        
         
         # Append to recoveries DataFrame
         recoveries = vcat(recoveries, DataFrame(year = Dates.year(peak), recovery = emp_recovery))
