@@ -1,12 +1,6 @@
+# Packages for debugging
 #using Gallium
 #using DataFrames
-
-#export monthly_to_quarterly
-export nber_string_to_date
-export nber_string_to_date_quarter
-export monthly_to_quarterly
-export load_data_from_list
-export compute_recovery_of_employment_at_given_recovery_of_output
 
 """
     month_to_quarter(date)
@@ -43,7 +37,7 @@ julia> rename!(monthly, :x1 => :DATE);
 
 julia> rename!(monthly, :x2 => :value);
 
-julia> quarterly = monthly_to_quarterly(monthly, :value);
+julia> quarterly = RED.monthly_to_quarterly(monthly);
 
 julia> quarterly[:value][1]
 2.0
@@ -54,7 +48,8 @@ julia> length(quarterly[:value])
 """
 function monthly_to_quarterly(monthly::DataFrame)
 
-    @assert [:DATE, :value] == names(monthly) ("Expected two columns, :DATE and :value, not " * string(names(monthly)))
+    @assert :DATE == names(monthly)[1] ("Expected first column to be :DATE, not " * string(names(monthly)[1]))
+    column = names(monthly)[2]
     
     # quarter months: 1, 4, 7, 10
     quarter_months = collect(1:3:10)
@@ -80,10 +75,10 @@ function monthly_to_quarterly(monthly::DataFrame)
     monthly_copy[:DATE] = month_to_quarter.(monthly_copy[:DATE])
 
     # Split-apply-combine
-    quarterly = by(monthly_copy, :DATE, df -> mean(df[:value]))
+    quarterly = by(monthly_copy, :DATE, df -> mean(df[column]))
 
     # Rename
-    rename!(quarterly, :x1 => :value)
+    rename!(quarterly, :x1 => column)
 
     return quarterly
     
@@ -137,39 +132,81 @@ function nber_string_to_date_quarter(date_string)
 end
 
 
-function load_data_from_list(; list_filenames::Dict{String, Integer} = nothing, data_folder = nothing)
-    data = Dict();
-    for filename in keys(list_filenames)
-        filepath = joinpath(data_folder, filename)
+function filepath_hash_to_df(; filepath = nothing, expected_hash = nothing)
+    # Check the hash
+    found_hash = hash(readstring(filepath))
+    @assert expected_hash == found_hash ("File " * filename * " has a different hash.\nExpected: " * string(expected_hash) * "\nFound: " * string(found_hash))
 
-        # Check the hash
-        expected_hash = list_filenames[filename]
-        found_hash = hash(readstring(filepath))
-        @assert expected_hash == found_hash ("File " * filename * " has a different hash.\nExpected: " * string(expected_hash) * "\nFound: " * string(found_hash))
+    # Start loading data at the second line if it's CSV, otherwise at the first line
+    csv_file = endswith(filepath, ".csv")
 
-        # Start loading data at the second line if it's CSV, otherwise at the first line
-        csv_file = endswith(filename, ".csv")
+    # Load CSV
+    df = CSV.read(filepath, datarow = csv_file ? 2 : 1)
 
-        # Load CSV
-        df = CSV.read(filepath, datarow = csv_file ? 2 : 1)
-
+    # Convert filename to symbol, without the extension
+    series_symbol = Symbol(replace(filepath,  r"(^.*/)([^.]*)(\..*$)", s"\2"))
+    
+    if csv_file
+        # Verify names
+        @assert [:DATE, series_symbol] == names(df) ("Unexpected names: " * string(names(df)))
         # CSV.read already converts the date column to Date, and verify that here
-        if csv_file
-	    @assert Date == typeof(df[:DATE][1])
-	    rename!(df, names(df)[2] => :value)
-        else
-	    # Change name from :Column1 to :value
-	    rename!(df, :Column1 => :value)
+	@assert Date == typeof(df[:DATE][1])
+    else
+	# Change name from :Column1 to :value
+	rename!(df, :Column1 => series_symbol)
+    end
+
+    return df
+end
+
+function load_quarterly_data_from_list(; list_filenames_hashes::Dict{String, Integer} = nothing, data_folder::String = nothing)
+    # Initialize data for scope in the function
+    data = nothing
+    
+    for (i_filename, filename) in enumerate(keys(list_filenames_hashes))
+        filepath = joinpath(data_folder, filename)
+        df = filepath_hash_to_df(filepath = filepath, expected_hash = list_filenames_hashes[filename])
+        
+        println("loaded " * filepath)
+
+        # Check if this dataframe is monthly, then convert it
+        if (Integer(Dates.Month(df[:DATE][2])) == Integer(Dates.Month(df[:DATE][1])) + 1)
+            df = monthly_to_quarterly(df)
         end
 
-        # Convert to symbol without the dot
-        symbol_name = replace(filename,  r"(^[^.]*)(\..*$)", s"\1")
-        println("loaded " * symbol_name)
-
-        # Add to data dictionary
-        data[Symbol(symbol_name)] = df
+        if (1 == i_filename)
+            # If this is the first file, add to data frame
+            data = df
+        else
+            # Merge to existing data frame
+            data = join(data, df, on = :DATE)
+        end
     end
     return data
+end
+
+function load_nber_cycles(; nber_data_hashes::Dict{String, Integer} = nothing, data_folder::String = nothing)
+
+    # Initialize
+    cycles = Dict{Symbol, Array{Dates.Date}}()
+    
+    for (i_filename, filename) in enumerate(keys(nber_data_hashes))
+        filepath = joinpath(data_folder, filename)
+        df = filepath_hash_to_df(filepath = filepath, expected_hash = nber_data_hashes[filename])
+
+        @assert 1 == length(names(df))
+        name = names(df)[1]
+        cycles[name] = map(nber_string_to_date_quarter, df[name])
+    end
+    return cycles
+
+    """
+    peaks_months = map(RED.nber_string_to_date, data[:NBER_peaks][:value])
+    troughs_months = map(RED.nber_string_to_date, data[:NBER_troughs][:value])
+    peaks_quarters = map(RED.nber_string_to_date_quarter, data[:NBER_peaks][:value])
+    troughs_quarters = map(RED.nber_string_to_date_quarter, data[:NBER_troughs][:value])
+    """
+
 end
 
 """
@@ -236,9 +273,7 @@ julia> gdp = [1; 0; 1; 2];
 
 julia> emp = [1; 0; 0.5; 1];
 
-julia> gdp_df = DataFrame(DATE = dates, log = gdp);
-
-julia> emp_df = DataFrame(DATE = dates, log = emp);
+julia> df = DataFrame(DATE = dates, gdp_log = gdp, emp_log = emp);
 
 julia> recovery_target_log = 1.5;
 
@@ -246,20 +281,21 @@ julia> peaks = [Dates.Date(2001, 1, 1)];
 
 julia> troughs = [Dates.Date(2001, 4, 1)];
 
-julia> compute_recovery_of_employment_at_given_recovery_of_output(gdp_df = gdp_df, emp_df = emp_df, recovery_target_log = recovery_target_log, peaks = peaks, troughs = troughs)
+julia> RED.compute_recovery_of_employment_at_given_recovery_of_output(df = df, gdp_log_column = :gdp_log, emp_log_column = :emp_log, recovery_target_log = recovery_target_log, peaks = peaks, troughs = troughs)
 1×2 DataFrames.DataFrame
-│ Row │ DATE       │ recovery │
-├─────┼────────────┼──────────┤
-│ 1   │ 2001-01-01 │ 0.75     │
+│ Row │ year │ recovery │
+├─────┼──────┼──────────┤
+│ 1   │ 2001 │ 0.75     │
 ```
 """
-function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::DataFrame = nothing,
-                                                                    emp_df::DataFrame = nothing,
+function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFrame = nothing,
+                                                                    gdp_log_column::Symbol = nothing,
+                                                                    emp_log_column::Symbol = nothing,
                                                                     recovery_target_log::Number = nothing,
                                                                     peaks::Array{Date} = nothing,
                                                                     troughs::Array{Date} = nothing)
 
-    # Initialize at empty
+    # Initialize a DataFrame at empty
     recoveries = DataFrame(year = Integer[],
                            recovery = Number[])
 
@@ -283,33 +319,32 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
 	end
 
 	# Get the index in the GDP DataFrame
-	gdp_trough_index = get_unique_index(trough, gdp_df[:DATE])
+	trough_index = get_unique_index(trough, df[:DATE])
 
 	# Find the bracket of time by which GDP has recovered by x%, so with
 	# interpolation we'll find the time by which it has recovered exactly by 5%
-	index_after = gdp_df[:DATE] .> gdp_df[:DATE][gdp_trough_index]
-	index_recovery = gdp_df[:log] .>= gdp_df[:log][gdp_trough_index] + recovery_target_log
+	index_after = df[:DATE] .> df[:DATE][trough_index]
+	index_recovery = df[gdp_log_column] .>= df[gdp_log_column][trough_index] + recovery_target_log
 	gdp_recovery_above_indices = find(index_after .& index_recovery)
 	@assert 1 <= length(gdp_recovery_above_indices)
-	gdp_recovery_above_index = gdp_recovery_above_indices[1]
-	gdp_recovery_above_date = gdp_df[:DATE][gdp_recovery_above_index]
+	recovery_above_index = gdp_recovery_above_indices[1]
         
 	# Skip if this recovery was cut short, i.e. if the date for the recovery index happens
 	# after the next peak
 	if (length(peaks) > i_peak)
-	    if (peaks[i_peak + 1] < gdp_df[:DATE][gdp_recovery_above_index])
+	    if (peaks[i_peak + 1] < df[:DATE][recovery_above_index])
 		continue
 	    end
 	end
 
 	# Amount of recovery at this index
-	gdp_recovery_above = gdp_df[:log][gdp_recovery_above_index] - gdp_df[:log][gdp_trough_index]
+	gdp_recovery_above = df[gdp_log_column][recovery_above_index] - df[gdp_log_column][trough_index]
 
 	# Same shortcuts for right below the recovery point
-	gdp_recovery_below_index = gdp_recovery_above_index - 1
-	gdp_recovery_below = gdp_df[:log][gdp_recovery_below_index] - gdp_df[:log][gdp_trough_index]
+	recovery_below_index = recovery_above_index - 1
+	gdp_recovery_below = df[gdp_log_column][recovery_below_index] - df[gdp_log_column][trough_index]
 
-	# Calculate loaidngs on the GDP recovery below and above, so the
+	# Calculate loadings on the GDP recovery below and above, so the
 	# interpolation gives 5% exactly
 	# println(peak, "-", trough, " - ", " - ", gdp_recovery_below, " - ", gdp_recovery_above)
 	loading_below = get_loading_below(below = gdp_recovery_below, above = gdp_recovery_above, target = recovery_target_log)
@@ -319,18 +354,18 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; gdp_df::Da
 			 atol = eps(recovery_target_log))
         
 	# Get the index for employment at the trough and at recovery
-	emp_trough_index = get_unique_index(trough, emp_df[:DATE])
-	emp_recovery_above_index = get_unique_index(gdp_recovery_above_date, emp_df[:DATE])
-	emp_recovery_below_index = emp_recovery_above_index - 1
-	emp_recovery_below = emp_df[:log][emp_recovery_below_index] - emp_df[:log][emp_trough_index]
-	emp_recovery_above = emp_df[:log][emp_recovery_above_index] - emp_df[:log][emp_trough_index]
+	emp_recovery_below = df[emp_log_column][recovery_below_index] - df[emp_log_column][trough_index]
+	emp_recovery_above = df[emp_log_column][recovery_above_index] - df[emp_log_column][trough_index]
 
 	emp_recovery = loading_below * emp_recovery_below + (1 - loading_below) * emp_recovery_above
 
+        """
         if (2001 == Dates.year(peak))
-            println(string(gdp_recovery_above_date) * " - " * string(emp_df[:log][emp_recovery_above_index]))
+            recovery_above_date = df[:DATE][recovery_above_index]
+            println(string(gdp_recovery_above_date) * " - " * string(emp_df[:log][recovery_above_index]))
             
         end
+        """
         
         # Append to recoveries DataFrame
         recoveries = vcat(recoveries, DataFrame(year = Dates.year(peak), recovery = emp_recovery))

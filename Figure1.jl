@@ -3,6 +3,12 @@
 using Gadfly
 using Cairo
 
+# Package for debugging
+using Gallium
+
+# Packages also required by RED
+using DataFrames
+
 # Include my package
 include("src/RED.jl")
 
@@ -17,8 +23,9 @@ import RED
  Download the following data from the St Louis Fed, or use the ones saved locally in CSV:
  - [GDP](https://fred.stlouisfed.org/series/GDPC1)
  - [payroll emploment](https://fred.stlouisfed.org/series/PAYEMS)
+ - and other series from their code, e.g. https://fred.stlouisfed.org/series/LNS12000002 for women's employment
 
- Copy-past the NBER peaks and troughs from [[http://www.nber.org/cycles.html][NBER business cycle dating]], or use the ones saved locally in TXT:
+ Copy-paste the NBER peaks and troughs from [[http://www.nber.org/cycles.html][NBER business cycle dating]], or use the ones saved locally in TXT:
  - NBER_peaks.txt
  - NBER_troughs.txt
 """
@@ -26,48 +33,41 @@ import RED
 data_folder = "data";
 
 # Verify hashes of files, otherwise things may change inadvertently
-list_filenames = Dict{String, Integer}("GDPC1.csv" => 18406736056617138266,
-		                       "PAYEMS.csv" => 13819066176910162213,
-                                       "LNS12000001.csv" => 16424143318742204293,
-                                       "LNS12000002.csv" => 15988222264250118898,
-		                       "NBER_peaks.txt" => 4901701600789099464,
-		                       "NBER_troughs.txt" => 14025698590750588114);
+monthly_data_hashes = Dict{String, Integer}("PAYEMS.csv" => 13819066176910162213,
+                                            "LNS12000001.csv" => 16424143318742204293,
+                                            "LNS12000002.csv" => 15988222264250118898,
+                                            "GDPC1.csv" => 18406736056617138266)
 
-data = RED.load_data_from_list(list_filenames = list_filenames, data_folder = data_folder)
+# Load monthly data
+quarterly_data = RED.load_quarterly_data_from_list(list_filenames_hashes = monthly_data_hashes,
+                                         data_folder = data_folder)
 
-# Aggregate monthly to quarterly
-data[:PAYEMS_Q] = RED.monthly_to_quarterly(data[:PAYEMS]);
-data[:emp_men_Q] = RED.monthly_to_quarterly(data[:LNS12000001])
-data[:emp_women_Q] = RED.monthly_to_quarterly(data[:LNS12000002])
-println("converted employment to quarterly")
+# Load NBER peaks and troughs
+nber_data_hashes = Dict{String, Integer}("NBER_peaks.txt" => 4901701600789099464,
+		                          "NBER_troughs.txt" => 14025698590750588114);
 
 # This block converts NBER dates in text-form into Julia dates for NBER peaks and troughs.
-# TODO: finish here
-
-peaks_months = map(RED.nber_string_to_date, data[:NBER_peaks][:value])
-troughs_months = map(RED.nber_string_to_date, data[:NBER_troughs][:value])
-peaks_quarters = map(RED.nber_string_to_date_quarter, data[:NBER_peaks][:value])
-troughs_quarters = map(RED.nber_string_to_date_quarter, data[:NBER_troughs][:value])
-
+nber_cycles = RED.load_nber_cycles(nber_data_hashes = nber_data_hashes, data_folder = data_folder)
 
 recovery_target_log = log(1 + 0.05);
 
-# Shortcut to GDP DataFrame with logs
-gdp_df = deepcopy(data[:GDPC1]);
-gdp_df[:log] = log.(gdp_df[:value]);
+gdp_symbol = :GDPC1
+emp_symbol = :LNS12000001
 
-# Shortcut to employment DataFrame with logs
-#emp_df = deepcopy(data[:PAYEMS_Q]);
+gdp_log_symbol = Symbol(string(gdp_symbol) * "_log")
+emp_log_symbol = Symbol(string(emp_symbol) * "_log")
 
-emp = :PAYEMS_Q
-emp_df = deepcopy(data[emp])
-emp_df[:log] = log.(emp_df[:value]);
+# Add columns with the log of these
+quarterly_data[gdp_log_symbol] = log.(quarterly_data[gdp_symbol])
+quarterly_data[emp_log_symbol] = log.(quarterly_data[emp_symbol])
 
-recoveries = RED.compute_recovery_of_employment_at_given_recovery_of_output(gdp_df = gdp_df,
-									emp_df = emp_df,
-									recovery_target_log = recovery_target_log,
-									peaks = peaks_quarters,
-									troughs = troughs_quarters)
+# Compute recoveries
+recoveries = RED.compute_recovery_of_employment_at_given_recovery_of_output(df = quarterly_data,
+									    gdp_log_column = gdp_log_symbol,
+                                                                            emp_log_column = emp_log_symbol,
+									    recovery_target_log = recovery_target_log,
+									    peaks = nber_cycles[:NBER_peaks],
+									    troughs = nber_cycles[:NBER_troughs])
 
 # Compute average and standard error before 1990:
 before_1990 = find(recoveries[:year] .< 1990)
@@ -106,5 +106,3 @@ plot(recoveries,
      slope = [0, 0, 0, 0, 0, 0, 0],
      Geom.abline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
                  style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]))
-
-#draw(PDF("Figure1.pdf", 800px, 400px), p)
