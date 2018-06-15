@@ -1,141 +1,31 @@
 #+Title: Computer adoption and the changing labor market
 #+Date: 2018-06-01
+#+Author: Miguel Morin and Filip Roszypal
 
-** Import RED module
+* Figure 1
 
-#+BEGIN_SRC julia :session :results output :tangle yes
-include("src/RED.jl")
-using RED
-using DataFrames
+Figure 1 shows that payroll employment is slower to recover after the last three recessions, for a given recovery of output of 5%. I use data from the Federal Reserve Economic Database (FRED) with the series GDPC1 (real GDP, "C" for chained) and PAYEMS (payroll employment), unfiltered. The recovery of employment is $log(L_\tau'/ L_ \tau)$, between the quarter of the NBER trough $\tau$ and the time $\tau'$ such that output recovers by 5% $(log(Y_\tau'/ Y_\tau) = log(1 + 5\%)$, with linear interpolation on the log of employment.
+
+The original figure was:
+[[file:/Users/mmorin/Dropbox/Computer adoption Miguel/images/130501_recoveries_payroll.jpg]]
+
+I updated this figure with code in Julia. Each function has doc-tests, which provide assurance that the code is doing the right thing. I also added the estimate of the average of the recovery of employment for the last three recessions and for the previous 7 recessions, along with 95% confidence intervals. These bands clearly show that the two averages are statistically different. The series GDPC1 is the default measure of economic activity and omitted in the function calls
+
+#+BEGIN_SRC julia :session :results output
+include("src/RED.jl");
+
+# Use this package to revise source code in the same REPL session
+using Revise;
+
+# Import the package, with functions accessible with RED.[name]
+import RED;
+
+RED.Figure1(filepath = "results/figure1 payroll", emp_symbol = :PAYEMS)
 #+END_SRC
 
 #+RESULTS:
-: WARNING: replacing module RED
-: RED
-: WARNING: using RED.nber_string_to_date in module Main conflicts with an existing identifier.
-: WARNING: using RED.nber_string_to_date_quarter in module Main conflicts with an existing identifier.
-: WARNING: using RED.monthly_to_quarterly in module Main conflicts with an existing identifier.
-
-** Data settings
-
- Download the following data from the St Louis Fed, or use the ones saved locally in CSV:
- - [GDP](https://fred.stlouisfed.org/series/GDPC1)
- - [payroll emploment](https://fred.stlouisfed.org/series/PAYEMS)
-
- Copy-past the NBER peaks and troughs from [[http://www.nber.org/cycles.html][NBER business cycle dating]], or use the ones saved locally in TXT:
- - NBER_peaks.txt
- - NBER_troughs.txt
-
- #+begin_src julia :results output :session :tangle yes
-   data_folder = "data";
-
-	    # Verify hashes of files, otherwise things may change inadvertently
-	    list_filenames = Dict("GDPC1.csv" => 18406736056617138266,
-				  "PAYEMS.csv" => 13819066176910162213,
-				  "NBER_peaks.txt" => 4901701600789099464,
-				  "NBER_troughs.txt" => 14025698590750588114);
-	    data = Dict();
-	    for filename in keys(list_filenames)
-		filepath = joinpath(data_folder, filename)
-		#println(filename)
-		#println(hash(readstring(filepath)))
-		@assert list_filenames[filename] == hash(readstring(filepath))
-
-		# Start loading data at the second line if it's CSV, otherwise at the first line
-		csv_file = endswith(filename, ".csv")
-
-		# Load CSV
-		df = CSV.read(filepath, datarow = csv_file ? 2 : 1)
-
-		# CSV.read already converts the date column to Date, and verify that here
-		if csv_file
-		    @assert Date == typeof(df[:DATE][1])
-		else
-		    # Change name from :Column1 to :value
-		    rename!(df, :Column1 => :value)
-		end
-
-		# Convert to symbol without the dot
-		symbol_name = replace(filename,  r"(^[^.]*)(\..*$)", s"\1")
-		println("loaded " * symbol_name)
-
-		# Add to data dictionary
-		data[Symbol(symbol_name)] = df
-	    end
-
-	 # Aggregate monthly to quarterly
-      data[:PAYEMS_Q] = monthly_to_quarterly(data[:PAYEMS], :PAYEMS);
-   println("converted employment to quarterly")
-
- #+end_src
-
- #+RESULTS:
- #+begin_example
-
-
-
-
-
- loaded GDPC1
- loaded NBER_peaks
- loaded PAYEMS
- loaded NBER_troughs
-
-
-
- converted employment to quarterly
- #+end_example
-
-** Business cycle dates
-
-This block converts NBER dates in text-form into Julia dates for NBER peaks and troughs.
-
- #+BEGIN_SRC julia :session :results output :tangle yes
-   # Apply this function to peaks and troughs, in quarters and in months
-
-# TODO: finish here, and find a better workflow too, because this Org-mode is painful
-
-   peaks_months = map(nber_string_to_date, data[:NBER_peaks][:value]);
-   troughs_months = map(nber_string_to_date, data[:NBER_troughs][:value]);
-   peaks_quarters = map(nber_string_to_date_quarter, data[:NBER_peaks][:value]);
-   troughs_quarters = map(nber_string_to_date_quarter, data[:NBER_troughs][:value]);
- #+END_SRC
-
- #+RESULTS:
- : 
- : 
- : 
- : 
- : 
- : 
- : 
-
-
-** Figure 1
- Payroll employment is slower to recover after the last three recessions, compared to a given recovery of output of 5%.
-
- #+BEGIN_SRC julia :session :results output :tangle yes
-
-   recovery_target_log = log(1 + 0.05);
-
-   # Shortcut to GDP DataFrame with logs
-   gdp_df = deepcopy(data[:GDPC1]);
-   gdp_df[:log] = log.(gdp_df[:GDPC1]);
-
-   # Shortcut to employment DataFrame with logs
-   emp_df = deepcopy(data[:PAYEMS_Q]);
-   emp_df[:log] = log.(emp_df[:PAYEMS]);
-
-   recoveries = compute_recovery_of_employment_at_given_recovery_of_output(gdp_df = gdp_df,
-									    emp_df = emp_df,
-									    recovery_target_log = recovery_target_log,
-									    peaks = peaks_quarters,
-									    troughs = troughs_quarters)
-
- #+END_SRC
-
- #+RESULTS:
- #+begin_example
+#+begin_example
+WARNING: replacing module RED
 
 
 
@@ -143,23 +33,35 @@ This block converts NBER dates in text-form into Julia dates for NBER peaks and 
 
 
 
+"results/figure1 payroll.png"
+"results/figure1 CPS.png"
+#+end_example
 
 
+[[file:results/figure1.png]]
 
-
- WARNING: both RED and RED export "compute_recovery_of_employment_at_given_recovery_of_output"; uses of it in module Main must be qualified
- ERROR: UndefVarError: compute_recovery_of_employment_at_given_recovery_of_output not defined
- #+end_example
-
- #+RESULTS:
-
- [[file:~/130501_recoveries_payroll.jpg]]
- #+RESULTS:
-
+The Current Population Survey is another measure of employment (FRED series CE160V). It has diverged significantly from the payroll employment numbers in recent decades. This figure plots the recovery of employment from the Current Population Survey. Notice the drop in the average, although the pattern is less clear.
 
 #+BEGIN_SRC julia :session :results output :tangle yes
-println("Hellow world again!")
+RED.Figure1(filepath = "results/figure1 CPS", emp_symbol = :CE16OV)
 #+END_SRC
 
 #+RESULTS:
-: Hellow world again!
+: "results/figure1 CPS.png"
+
+[[/Users/mmorin/RED/results/figure1 CPS.png]]
+
+One referee from the AEJ Macro asked about female labor force participation: "As this theory is a theory about the trend, it would be nice if the author provided some justification for why this trend (the trend decline in the price of computers) is more relevant for the overall level of employment than the (recent) slowdown in the trend of female labor force participation. (Albanasi and Sahin 2014)" I still see this question as coming from left field, but it is interesting to produce these pictures again with a split by men and women (series LNS12000001 and LNS12000002). The employment figures for these come from the Current Population Survey. I find no significant difference between men and women:
+#+BEGIN_SRC julia :session :results output :tangle yes
+  RED.Figure1(filepath = "results/figure1 men", emp_symbol = :LNS12000001)
+  RED.Figure1(filepath = "results/figure1 women", emp_symbol = :LNS12000002)
+#+END_SRC
+
+#+RESULTS:
+: "results/figure1 men.png"
+: "results/figure1 women.png"
+
+[[file:/Users/mmorin/RED/results/figure1 men.png]]
+[[file:/Users/mmorin/RED/results/figure1 women.png]]
+
+

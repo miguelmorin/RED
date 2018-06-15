@@ -159,18 +159,22 @@ function filepath_hash_to_df(; filepath = nothing, expected_hash = nothing)
     return df
 end
 
-function load_quarterly_data_from_list(; list_filenames_hashes::Dict{String, Integer} = nothing, data_folder::String = nothing)
+function load_quarterly_data_from_list(; list_filenames_hashes::Dict{String, Integer} = nothing,
+                                       data_folder::String = nothing,
+                                       verbose = false)
     # Initialize data for scope in the function
     data = nothing
     
     for (i_filename, filename) in enumerate(keys(list_filenames_hashes))
         filepath = joinpath(data_folder, filename)
         df = filepath_hash_to_df(filepath = filepath, expected_hash = list_filenames_hashes[filename])
-        
-        println("loaded " * filepath)
+
+        if verbose
+            println("loaded " * filepath)
+        end
 
         # Check if this dataframe is monthly, then convert it
-        if (Integer(Dates.Month(df[:DATE][2])) == Integer(Dates.Month(df[:DATE][1])) + 1)
+        if (convert(Integer, Dates.value(Dates.Month(df[:DATE][2]))) == convert(Integer, Dates.value(Dates.Month(df[:DATE][1]))) + 1)
             df = monthly_to_quarterly(df)
         end
 
@@ -297,7 +301,7 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
 
     # Initialize a DataFrame at empty
     recoveries = DataFrame(year = Integer[],
-                           recovery = Number[])
+                           recovery = Float64[])
 
     # Iterate on peaks
     for peak_tuple in enumerate(peaks)
@@ -358,14 +362,6 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
 	emp_recovery_above = df[emp_log_column][recovery_above_index] - df[emp_log_column][trough_index]
 
 	emp_recovery = loading_below * emp_recovery_below + (1 - loading_below) * emp_recovery_above
-
-        
-        if (2001 == Dates.year(peak))
-            recovery_above_date = df[:DATE][recovery_above_index]
-            println("Loading = " * string(loading_below) * ", " * string(recovery_above_date) * " - " * string(df[emp_log_column][recovery_above_index]))
-            
-        end
-        
         
         # Append to recoveries DataFrame
         recoveries = vcat(recoveries, DataFrame(year = Dates.year(peak), recovery = emp_recovery))
@@ -373,5 +369,3 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
     end
     return recoveries
 end
-
-    

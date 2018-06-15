@@ -12,3 +12,4 @@
 *.tex
 *.html
 docs/build/*
+results/*
