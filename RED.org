@@ -9,7 +9,7 @@ Figure 1 shows that payroll employment is slower to recover after the last three
 The original figure was:
 [[file:/Users/mmorin/Dropbox/Computer adoption Miguel/images/130501_recoveries_payroll.jpg]]
 
-I updated this figure with code in Julia. Each function has doc-tests, which provide assurance that the code is doing the right thing. I also added the estimate of the average of the recovery of employment for the last three recessions and for the previous 7 recessions, along with 95% confidence intervals. These bands clearly show that the two averages are statistically different. The series GDPC1 is the default measure of economic activity and omitted in the function calls
+I updated this figure with code in Julia. Each function has doc-tests, which provide assurance that the code is doing the right thing. I also added the estimate of the average of the recovery of employment for the last three recessions and for the previous 7 recessions, along with 95% confidence intervals. These bands clearly show that the two averages are statistically different. The series GDPC1 is the default measure of economic activity and omitted in the function calls.
 
 #+BEGIN_SRC julia :session :results output
 include("src/RED.jl");

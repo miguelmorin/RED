@@ -94,7 +94,8 @@ function Figure1(; gdp_symbol = :GDPC1, emp_symbol = :PAYEMS, recovery_percent =
              Guide.xlabel("Peak year"),
              Theme(bar_highlight = colorant"dark grey",
                    bar_spacing = 2mm,
-                   major_label_font_size = 10pt))
+                   major_label_font_size = 10pt),
+             Guide.title("Recovery for series " * string(emp_symbol)))
         draw(PNG(filepath_with_extension, 800px, 400px), p)
     else
         # Version with Plots.jl
