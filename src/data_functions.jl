@@ -362,7 +362,10 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
 	emp_recovery_above = df[emp_log_column][recovery_above_index] - df[emp_log_column][trough_index]
 
 	emp_recovery = loading_below * emp_recovery_below + (1 - loading_below) * emp_recovery_above
-        
+
+        # Convert back to percentage
+        emp_recovery = 100 * (exp(emp_recovery) - 1)
+
         # Append to recoveries DataFrame
         recoveries = vcat(recoveries, DataFrame(year = Dates.year(peak), recovery = emp_recovery))
 

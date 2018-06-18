@@ -8,7 +8,11 @@
  - NBER_peaks.txt
  - NBER_troughs.txt
 """
-function Figure1(; gdp_symbol = :GDPC1, emp_symbol = :PAYEMS, recovery_percent = 0.05, filepath = nothing, verbose = false)
+function Figure1(; gdp_symbol::Symbol = :GDPC1,
+                 emp_symbol::Symbol = :PAYEMS,
+                 recovery_percent::Integer = 5,
+                 filepath::String = nothing,
+                 verbose::Bool = false)
 
     data_folder = "data";
 
@@ -31,7 +35,7 @@ function Figure1(; gdp_symbol = :GDPC1, emp_symbol = :PAYEMS, recovery_percent =
     # This block converts NBER dates in text-form into Julia dates for NBER peaks and troughs.
     nber_cycles = RED.load_nber_cycles(nber_data_hashes = nber_data_hashes, data_folder = data_folder)
 
-    recovery_target_log = log(1 + recovery_percent);
+    recovery_target_log = log(1 + recovery_percent / 100);
 
     gdp_log_symbol = Symbol(string(gdp_symbol) * "_log")
     emp_log_symbol = Symbol(string(emp_symbol) * "_log")
@@ -88,7 +92,7 @@ function Figure1(; gdp_symbol = :GDPC1, emp_symbol = :PAYEMS, recovery_percent =
                              after_avg, after_plus, after_minus],
                  Geom.hline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
                             style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]),
-                 Guide.ylabel("Employment recovery for given recovery of output (%)", orientation = :vertical),
+                 Guide.ylabel("Employment recovery for " * string(recovery_percent) * "% recovery of output (%)", orientation = :vertical),
                  Guide.xlabel("Peak year"),
                  Theme(bar_highlight = colorant"dark grey",
                        bar_spacing = 2mm,

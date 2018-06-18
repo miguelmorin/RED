@@ -4,7 +4,8 @@
 
 * Figure 1
 
-Figure 1 shows that payroll employment is slower to recover after the last three recessions, for a given recovery of output of 5%. I use data from the Federal Reserve Economic Database (FRED) with the series GDPC1 (real GDP, "C" for chained) and PAYEMS (payroll employment), unfiltered. The recovery of employment is $log(L_\tau'/ L_ \tau)$, between the quarter of the NBER trough $\tau$ and the time $\tau'$ such that output recovers by 5% $(log(Y_\tau'/ Y_\tau) = log(1 + 5\%)$, with linear interpolation on the log of employment.
+Figure 1 shows that payroll employment is slower to recover after the last three recessions, for a given recovery of output of 5%. I use data from the Federal Reserve Economic Database (FRED) with the series GDPC1 (real GDP, "C" for chained) and PAYEMS (payroll employment), unfiltered. The recovery of employment is $100 \log(L_\tau'/ L_ \tau)$, between the quarter of the NBER trough $\tau$ and the time $\tau'$ such that output recovers by 5% $(\log(Y_\tau'/ Y_\tau) = \log(1 + 5\%)$, with linear interpolation on the log of employment before converting back to percentages. The interpretation of this Figure is close to the percentage of recovery of employment by the time that output recovers by 5%, if observed in continuous time
+.
 
 The original figure was:
 [[file:/Users/mmorin/Dropbox/Computer adoption Miguel/images/130501_recoveries_payroll.jpg]]
