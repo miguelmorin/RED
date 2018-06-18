@@ -131,6 +131,13 @@ function nber_string_to_date_quarter(date_string)
     return nber_string_to_date(date_string, quarter_not_month = true)
 end
 
+"""
+Convert NBER date string to Julia Date and align it to a quarter
+
+"""
+function nber_string_to_date_month(date_string)
+    return nber_string_to_date(date_string, quarter_not_month = false)
+end
 
 function filepath_hash_to_df(; filepath = nothing, expected_hash = nothing)
     # Check the hash
@@ -159,11 +166,15 @@ function filepath_hash_to_df(; filepath = nothing, expected_hash = nothing)
     return df
 end
 
-function load_quarterly_data_from_list(; list_filenames_hashes::Dict{String, Integer} = nothing,
-                                       data_folder::String = nothing,
-                                       verbose = false)
+function load_data_from_list(; list_filenames_hashes::Dict{String, Integer} = nothing,
+                             verbose = false)
+
+    # Global variables
+    global data_folder
+    
     # Initialize data for scope in the function
-    data = nothing
+    quarterly_data = nothing
+    monthly_data = nothing
     
     for (i_filename, filename) in enumerate(keys(list_filenames_hashes))
         filepath = joinpath(data_folder, filename)
@@ -174,19 +185,33 @@ function load_quarterly_data_from_list(; list_filenames_hashes::Dict{String, Int
         end
 
         # Check if this dataframe is monthly, then convert it
+        monthly_df = nothing
+        quarterly_df = nothing
         if (convert(Integer, Dates.value(Dates.Month(df[:DATE][2]))) == convert(Integer, Dates.value(Dates.Month(df[:DATE][1]))) + 1)
-            df = monthly_to_quarterly(df)
+            quarterly_df = monthly_to_quarterly(df)
+            monthly_df = df
+        else
+            quarterly_df = df
         end
 
-        if (1 == i_filename)
+        if (nothing == quarterly_data)
             # If this is the first file, add to data frame
-            data = df
+            quarterly_data = df
         else
-            # Merge to existing data frame
-            data = join(data, df, on = :DATE)
+            # Merge to existing data frame, with outer join to keep all dates
+            quarterly_data = join(quarterly_data, quarterly_df, on = :DATE, kind = :outer)
+        end
+
+        # Add to the monthly data frame?
+        if nothing != monthly_df
+            if (nothing == monthly_data)
+                monthly_data = monthly_df
+            else
+                monthly_data = join(monthly_data, monthly_df, on = :DATE)
+            end
         end
     end
-    return data
+    return Dict(:quarterly => quarterly_data, :monthly => monthly_data)
 end
 
 function load_nber_cycles(; nber_data_hashes::Dict{String, Integer} = nothing, data_folder::String = nothing)
@@ -200,16 +225,10 @@ function load_nber_cycles(; nber_data_hashes::Dict{String, Integer} = nothing, d
 
         @assert 1 == length(names(df))
         name = names(df)[1]
-        cycles[name] = map(nber_string_to_date_quarter, df[name])
+        cycles[Symbol(string(name) * "_month")] = map(nber_string_to_date_month, df[name])
+        cycles[Symbol(string(name) * "_quarter")] = map(nber_string_to_date_quarter, df[name])
     end
     return cycles
-
-    """
-    peaks_months = map(RED.nber_string_to_date, data[:NBER_peaks][:value])
-    troughs_months = map(RED.nber_string_to_date, data[:NBER_troughs][:value])
-    peaks_quarters = map(RED.nber_string_to_date_quarter, data[:NBER_peaks][:value])
-    troughs_quarters = map(RED.nber_string_to_date_quarter, data[:NBER_troughs][:value])
-    """
 
 end
 
@@ -262,7 +281,7 @@ ERROR: AssertionError: 1 == length(index_results)
 """
 function get_unique_index(element, vector)
     index_results = find(x -> x == element, vector)
-    @assert 1 == length(index_results)
+    @assert 1 == length(index_results) "Expected 1 match for " * string(element) * ", found " * string(length(index_results))
     return index_results[1]
 end
 
@@ -294,7 +313,8 @@ julia> RED.compute_recovery_of_employment_at_given_recovery_of_output(df = df, g
 """
 function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFrame = nothing,
                                                                     gdp_log_column::Symbol = nothing,
-                                                                    emp_log_column::Symbol = nothing,
+                                                                    emp_column::Symbol = nothing,
+                                                                    employment_is_rate = nothing,
                                                                     recovery_target_log::Number = nothing,
                                                                     peaks::Array{Date} = nothing,
                                                                     troughs::Array{Date} = nothing)
@@ -324,6 +344,11 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
 
 	# Get the index in the GDP DataFrame
 	trough_index = get_unique_index(trough, df[:DATE])
+
+        # Check if GDP and employment are defined at the trough
+        if ismissing(df[gdp_log_column][trough_index]) | ismissing(df[emp_column][trough_index])
+            continue
+        end
 
 	# Find the bracket of time by which GDP has recovered by x%, so with
 	# interpolation we'll find the time by which it has recovered exactly by 5%
@@ -358,13 +383,15 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
 			 atol = eps(recovery_target_log))
         
 	# Get the index for employment at the trough and at recovery
-	emp_recovery_below = df[emp_log_column][recovery_below_index] - df[emp_log_column][trough_index]
-	emp_recovery_above = df[emp_log_column][recovery_above_index] - df[emp_log_column][trough_index]
+	emp_recovery_below = df[emp_column][recovery_below_index] - df[emp_column][trough_index]
+	emp_recovery_above = df[emp_column][recovery_above_index] - df[emp_column][trough_index]
 
 	emp_recovery = loading_below * emp_recovery_below + (1 - loading_below) * emp_recovery_above
 
-        # Convert back to percentage
-        emp_recovery = 100 * (exp(emp_recovery) - 1)
+        if !employment_is_rate
+            # Convert back to percentage
+            emp_recovery = 100 * (exp(emp_recovery) - 1)
+        end
 
         # Append to recoveries DataFrame
         recoveries = vcat(recoveries, DataFrame(year = Dates.year(peak), recovery = emp_recovery))

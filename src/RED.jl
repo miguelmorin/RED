@@ -9,6 +9,10 @@ using Cairo
 #using Plots
 using Gadfly
 
+# Global variables
+global data_folder = "data";
+
+
 include("data_functions.jl")
 include("Figure1.jl")
 

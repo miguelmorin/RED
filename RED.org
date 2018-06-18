@@ -52,7 +52,7 @@ RED.Figure1(filepath = "results/figure1 CPS", emp_symbol = :CE16OV)
 
 [[/Users/mmorin/RED/results/figure1 CPS.png]]
 
-One referee from the AEJ Macro asked about female labor force participation: "As this theory is a theory about the trend, it would be nice if the author provided some justification for why this trend (the trend decline in the price of computers) is more relevant for the overall level of employment than the (recent) slowdown in the trend of female labor force participation. (Albanasi and Sahin 2014)" I still see this question as coming from left field, but it is interesting to produce these pictures again with a split by men and women (series LNS12000001 and LNS12000002). The employment figures for these come from the Current Population Survey. I find no significant difference between men and women:
+One referee from the AEJ Macro asked about female labor force participation: "As this theory is a theory about the trend, it would be nice if the author provided some justification for why this trend (the trend decline in the price of computers) is more relevant for the overall level of employment than the (recent) slowdown in the trend of female labor force participation. (Albanasi and Sahin 2014)" I still see this question as coming from left field, but it is interesting to produce these pictures again with a split by men and women (series LNS12000001 and LNS12000002). The employment figures for these come from the Current Population Survey. I find no significant difference between men and women (if anything, the pattern is stronger for men than for women):
 #+BEGIN_SRC julia :session :results output :tangle yes
   RED.Figure1(filepath = "results/figure1 men", emp_symbol = :LNS12000001)
   RED.Figure1(filepath = "results/figure1 women", emp_symbol = :LNS12000002)
@@ -65,4 +65,56 @@ One referee from the AEJ Macro asked about female labor force participation: "As
 [[file:/Users/mmorin/RED/results/figure1 men.png]]
 [[file:/Users/mmorin/RED/results/figure1 women.png]]
 
+
+The results at the monthly frequency are similar to the quarterly frequency. Here I use Industrial production as a monthly indicator of economic activity and employment in the goods-producing sector as the corresponding measure of employment.
+
+#+BEGIN_SRC julia :session :results output :tangle yes
+RED.Figure1(filepath = "results/figure1 monthly", gdp_symbol = :INDPRO, emp_symbol = :USGOOD)
+#+END_SRC
+
+#+RESULTS:
+: Monthly!
+: "results/figure1 monthly.png"
+
+[[file:/Users/mmorin/RED/results/figure1 monthly.png]]
+
+This next picture uses Hours of nonfarm workers, which start only in 1965. With hours, 2007 has a strong recovery, which breaks the statistical difference between the means:
+#+BEGIN_SRC julia :session :results output :tangle yes
+  RED.Figure1(filepath = "results/figure1 hours", emp_symbol = :TOTLQ)
+#+END_SRC
+
+#+RESULTS:
+: "results/figure1 hours.png"
+
+[[file:/Users/mmorin/RED/results/figure1 hours.png]]
+This next picture uses the civilian employment ratio (employment divided by labor force). Because this measure is a ratio, I do not transform the logarithm and use just the change, measured in percentage points.
+
+#+BEGIN_SRC julia :session :results output :tangle yes
+  RED.Figure1(filepath = "results/figure1 employment rate", emp_symbol = :EMRATIO)
+#+END_SRC
+
+#+RESULTS:
+: "results/figure1 employment rate.png"
+
+[[file:/Users/mmorin/RED/results/figure1 employment rate.png]]
+The results for blacks and African American employment rate are similar:
+
+#+BEGIN_SRC julia :session :results output :tangle yes
+  RED.Figure1(filepath = "results/figure1 blacks", emp_symbol = :LNS12300006)
+#+END_SRC
+
+[[file:/Users/mmorin/RED/results/figure1 blacks.png]]
+
+The next figures show the employment rate for the Hispanic and Latino group, Black and African American men over 20 years of age, and Black and African American women over 20 years of age. Here, the recent recessions have a lower average, though it's not statistically signficantly different from the previous two recessions, possibly because the sample size is limited to 5 recessions instead of the 10 post-war recessions (aside from the 1980 recession, whose recovery was too short because of the 1981 recession):
+
+#+BEGIN_SRC julia :session :results output :tangle yes
+  RED.Figure1(filepath = "results/figure1 hispanic", emp_symbol = :LNS12300009)
+  RED.Figure1(filepath = "results/figure1 black men", emp_symbol = :LNS12300031)
+  RED.Figure1(filepath = "results/figure1 black women", emp_symbol = :LNS12300032)
+#+END_SRC
+
+[[file:/Users/mmorin/RED/results/figure1 hispanic.png]]
+
+[[file:/Users/mmorin/RED/results/figure1 black men.png]]
+[[file:/Users/mmorin/RED/results/figure1 black women.png]]
 

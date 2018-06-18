@@ -14,19 +14,27 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
                  filepath::String = nothing,
                  verbose::Bool = false)
 
-    data_folder = "data";
-
     # Verify hashes of files, otherwise things may change inadvertently
-    monthly_data_hashes = Dict{String, Integer}("PAYEMS.csv" => 13819066176910162213,
-                                                "LNS12000001.csv" => 16424143318742204293,
-                                                "LNS12000002.csv" => 15988222264250118898,
-                                                "GDPC1.csv" => 18406736056617138266,
-                                                "CE16OV.csv" => 4591378615148281314)
+    data_hashes = Dict{String, Integer}("PAYEMS.csv" => 13819066176910162213,
+                                        "LNS12000001.csv" => 16424143318742204293,
+                                        "LNS12000002.csv" => 15988222264250118898,
+                                        "GDPC1.csv" => 18406736056617138266,
+                                        "CE16OV.csv" => 4591378615148281314,
+                                        "USGOOD.csv" => 17093152543069789893,
+                                        "INDPRO.csv" => 10062885073871801530,
+                                        "TOTLQ.csv" => 13351129232652546681,
+                                        "EMRATIO.csv" => 16365288808354535060,
+                                        "LNS12300006.csv" => 6932484352045138290,
+                                        "LNS12300009.csv" => 7707514530963284877,
+                                        "LNS12300031.csv" => 17090641733883191135,
+                                        "LNS12300032.csv" => 352855425927135986)
 
     # Load monthly data
-    quarterly_data = RED.load_quarterly_data_from_list(list_filenames_hashes = monthly_data_hashes,
-                                                       data_folder = data_folder,
-                                                       verbose = verbose)
+    data = RED.load_data_from_list(list_filenames_hashes = data_hashes,
+                                   verbose = verbose)
+
+    quarterly_data = data[:quarterly]
+    monthly_data = data[:monthly]
 
     # Load NBER peaks and troughs
     nber_data_hashes = Dict{String, Integer}("NBER_peaks.txt" => 4901701600789099464,
@@ -35,22 +43,48 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
     # This block converts NBER dates in text-form into Julia dates for NBER peaks and troughs.
     nber_cycles = RED.load_nber_cycles(nber_data_hashes = nber_data_hashes, data_folder = data_folder)
 
+    # Check if both indicators exist monthly
+    if in(gdp_symbol, names(monthly_data)) & in(emp_symbol, names(monthly_data))
+        df = monthly_data
+        peaks = nber_cycles[:NBER_peaks_month]
+        troughs = nber_cycles[:NBER_troughs_month]
+        println("Monthly!")
+    else
+        df = quarterly_data
+        peaks = nber_cycles[:NBER_peaks_quarter]
+        troughs = nber_cycles[:NBER_troughs_quarter]
+    end
+    
     recovery_target_log = log(1 + recovery_percent / 100);
 
+    # GDP should always be in levels, suitable for logarithm    
     gdp_log_symbol = Symbol(string(gdp_symbol) * "_log")
-    emp_log_symbol = Symbol(string(emp_symbol) * "_log")
+    df[gdp_log_symbol] = log.(df[gdp_symbol])
 
-    # Add columns with the log of these
-    quarterly_data[gdp_log_symbol] = log.(quarterly_data[gdp_symbol])
-    quarterly_data[emp_log_symbol] = log.(quarterly_data[emp_symbol])
+    # Employment may be a rate, such as employment rate, in which case do not take logs
+    emp_lowercase = lowercase(string(emp_symbol))
+    employment_is_rate = endswith(emp_lowercase, "ratio") | startswith(emp_lowercase, "lns1230")
+    if (employment_is_rate)
+        emp_symbol_local = emp_symbol
+
+        # Unit for the plot: percentage points
+        unit = "pp"
+    else
+        emp_symbol_local = Symbol(string(emp_symbol) * "_log")
+        df[emp_log_symbol] = log.(df[emp_symbol])
+
+        # Unit for the plot: percentages
+        unit = "%"
+    end
 
     # Compute recoveries
-    recoveries = RED.compute_recovery_of_employment_at_given_recovery_of_output(df = quarterly_data,
+    recoveries = RED.compute_recovery_of_employment_at_given_recovery_of_output(df = df,
 									        gdp_log_column = gdp_log_symbol,
-                                                                                emp_log_column = emp_log_symbol,
+                                                                                emp_column = emp_symbol_local,
+                                                                                employment_is_rate = employment_is_rate,
 									        recovery_target_log = recovery_target_log,
-									        peaks = nber_cycles[:NBER_peaks],
-									        troughs = nber_cycles[:NBER_troughs])
+									        peaks = peaks,
+									        troughs = troughs)
 
     # Indices before and after 1990
     before_1990 = find(recoveries[:year] .< 1990)
@@ -92,7 +126,7 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
                              after_avg, after_plus, after_minus],
                  Geom.hline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
                             style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]),
-                 Guide.ylabel("Employment recovery for " * string(recovery_percent) * "% recovery of output (%)", orientation = :vertical),
+                 Guide.ylabel("Employment recovery for " * string(recovery_percent) * "% recovery of output (" * unit * ")", orientation = :vertical),
                  Guide.xlabel("Peak year"),
                  Theme(bar_highlight = colorant"dark grey",
                        bar_spacing = 2mm,
