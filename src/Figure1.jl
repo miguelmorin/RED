@@ -9,6 +9,7 @@
  - NBER_troughs.txt
 """
 function Figure1(; gdp_symbol = :GDPC1, emp_symbol = :PAYEMS, recovery_percent = 0.05, filepath = nothing, verbose = false)
+
     data_folder = "data";
 
     # Verify hashes of files, otherwise things may change inadvertently
@@ -52,50 +53,47 @@ function Figure1(; gdp_symbol = :GDPC1, emp_symbol = :PAYEMS, recovery_percent =
     after_1990 = find(recoveries[:year] .>= 1990)
 
     # Linear regression to get the mean and its standard error
-    before_fit = fit(LinearModel, @formula(recovery ~ year), recoveries)
+    before_fit = fit(LinearModel, @formula(recovery ~ 1), recoveries[before_1990, :])
+    after_fit = fit(LinearModel, @formula(recovery ~ 1), recoveries[after_1990, :])
 
     before_avg = coef(before_fit)[1]
+    before_sd = stderror(before_fit)[1]
 
-    # before_std = 
+    after_avg = coef(after_fit)[1]
+    after_sd = stderror(after_fit)[1]
 
-    interval_factor = 1.96
+    interval_95 = 1.96
 
-    before_average = mean(recoveries[:recovery][before_1990])
-    before_sd = std(recoveries[:recovery][before_1990]) / sqrt(length(before_1990))
+    before_plus = before_avg + interval_95 * before_sd
+    before_minus = before_avg - interval_95 * before_sd
 
-    before_plus = before_average + interval_factor * before_sd
-    before_minus = before_average - interval_factor * before_sd
-
-    after_average = mean(recoveries[:recovery][after_1990])
-    after_sd = std(recoveries[:recovery][after_1990]) / sqrt(length(after_1990))
-
-    after_plus = after_average + interval_factor * after_sd
-    after_minus = after_average - interval_factor * after_sd
+    after_plus = after_avg + interval_95 * after_sd
+    after_minus = after_avg - interval_95 * after_sd
 
     # Verify that I got the intervals right
-    @assert isapprox(2 * interval_factor * before_sd, before_plus - before_minus)
-    @assert isapprox(2 * interval_factor * after_sd, after_plus - after_minus)
+    @assert isapprox(2 * interval_95 * before_sd, before_plus - before_minus)
+    @assert isapprox(2 * interval_95 * after_sd, after_plus - after_minus)
 
     filepath_with_extension = filepath * ".png"
     if true
         # Version with Gadfly
         
         p = plot(x = recoveries[:year],
-             y = recoveries[:recovery],
-             Geom.bar,
-             Scale.x_discrete,
-             Scale.y_continuous(minvalue = min(before_minus, after_minus), maxvalue = max(before_plus, after_plus)),
-             yintercept=[0,
-                         before_average, before_plus, before_minus,
-                         after_average, after_plus, after_minus],
-             Geom.hline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
-                        style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]),
-             Guide.ylabel("Employment recovery for given recovery of output (%)", orientation = :vertical),
-             Guide.xlabel("Peak year"),
-             Theme(bar_highlight = colorant"dark grey",
-                   bar_spacing = 2mm,
-                   major_label_font_size = 10pt),
-             Guide.title("Recovery for series " * string(emp_symbol)))
+                 y = recoveries[:recovery],
+                 Geom.bar,
+                 Scale.x_discrete,
+                 Scale.y_continuous(minvalue = min(before_minus, after_minus), maxvalue = max(before_plus, after_plus)),
+                 yintercept=[0,
+                             before_avg, before_plus, before_minus,
+                             after_avg, after_plus, after_minus],
+                 Geom.hline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
+                            style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]),
+                 Guide.ylabel("Employment recovery for given recovery of output (%)", orientation = :vertical),
+                 Guide.xlabel("Peak year"),
+                 Theme(bar_highlight = colorant"dark grey",
+                       bar_spacing = 2mm,
+                       major_label_font_size = 10pt),
+                 Guide.title("Recovery for series " * string(emp_symbol)))
         draw(PNG(filepath_with_extension, 800px, 400px), p)
     else
         # Version with Plots.jl
@@ -109,9 +107,9 @@ function Figure1(; gdp_symbol = :GDPC1, emp_symbol = :PAYEMS, recovery_percent =
 
 
         p = plot([0,
-              before_average, before_plus, before_minus,
-              after_average, after_plus, after_minus],
-             seriestype = [:hline, :hline, :hline, :hline, :hline, :hline, :hline])
+                  before_avg, before_plus, before_minus,
+                  after_avg, after_plus, after_minus],
+                 seriestype = [:hline, :hline, :hline, :hline, :hline, :hline, :hline])
 
         bar!(map(string, recoveries[:year]),
              recoveries[:recovery],
