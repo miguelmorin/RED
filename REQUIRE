@@ -1,0 +1,6 @@
+julia 0.6.3
+CSV 0.2.5
+Cairo 0.5.2
+DataFrames 0.11.6
+GLM 0.11.0
+Gadfly 0.7.0
