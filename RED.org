@@ -10,7 +10,7 @@ Figure 1 shows that payroll employment is slower to recover after the last three
 The original figure was:
 [[file:/Users/mmorin/Dropbox/Computer adoption Miguel/images/130501_recoveries_payroll.jpg]]
 
-I updated this figure with code in Julia. Each function has doc-tests, which provide assurance that the code is doing the right thing. I also added the estimate of the average of the recovery of employment for the last three recessions and for the previous 7 recessions, along with 95% confidence intervals (from a linear regression of the recovery of employment on a constant). These bands clearly show that the two averages are statistically different. The series GDPC1 is the default measure of economic activity and omitted in the function calls.
+I updated this figure with code in Julia. Each function has doc-tests, which provide assurance that the code is doing the right thing. I also added the estimate of the average of the recovery of employment for the last three recessions and for the previous 7 recessions, along with 95% confidence intervals (from a linear regression of the recovery of employment on a constant). To confirm the statistical significance of this difference, I also run a regression of the recovery of employment on an indicator of post-1990: the coefficient is highly statistically significant. The series GDPC1 is the default measure of economic activity and omitted in the function calls.
 
 #+BEGIN_SRC julia :session :results output
 include("src/RED.jl");
@@ -20,6 +20,10 @@ using Revise;
 
 # Import the package, with functions accessible with RED.[name]
 import RED;
+
+# Delete all previous figures
+Base.Filesystem.rm("results", recursive = true)
+Base.Filesystem.mkdir("results")
 
 RED.Figure1(filepath = "results/figure1 payroll", emp_symbol = :PAYEMS)
 #+END_SRC
@@ -34,21 +38,36 @@ WARNING: replacing module RED
 
 
 
-"results/figure1 payroll.png"
-"results/figure1 CPS.png"
+
+
+
+
+
+Formula: recovery ~ 1 + after_1990
+
+Coefficients:
+               Estimate Std.Error   t value Pr(>|t|)
+(Intercept)  0.00343867  0.281359 0.0122216   0.9905
+after_1990      1.71742  0.336289   5.10699   0.0009
 #+end_example
 
 
-[[file:results/figure1.png]]
+[[file:results/figure1 payroll.png]]
 
-The Current Population Survey is another measure of employment (FRED series CE160V). It has diverged significantly from the payroll employment numbers in recent decades. This figure plots the recovery of employment from the Current Population Survey. Notice the drop in the average, although the pattern is less clear.
+The Current Population Survey is another measure of employment (FRED series CE160V). It has diverged significantly from the payroll employment numbers in recent decades. This figure plots the recovery of employment from the Current Population Survey. Notice the drop in the average, although the pattern is less clear, and the t-statistic drops from 5 to 1.5.
 
 #+BEGIN_SRC julia :session :results output :tangle yes
 RED.Figure1(filepath = "results/figure1 CPS", emp_symbol = :CE16OV)
 #+END_SRC
 
 #+RESULTS:
-: "results/figure1 CPS.png"
+: 
+: Formula: recovery ~ 1 + after_1990
+: 
+: Coefficients:
+:              Estimate Std.Error t value Pr(>|t|)
+: (Intercept)  0.556268   0.44258 1.25688   0.2443
+: after_1990   0.820701  0.528984 1.55147   0.1594
 
 [[/Users/mmorin/RED/results/figure1 CPS.png]]
 
@@ -59,22 +78,41 @@ One referee from the AEJ Macro asked about female labor force participation: "As
 #+END_SRC
 
 #+RESULTS:
-: "results/figure1 men.png"
-: "results/figure1 women.png"
+#+begin_example
+
+Formula: recovery ~ 1 + after_1990
+
+Coefficients:
+             Estimate Std.Error t value Pr(>|t|)
+(Intercept)  0.618107  0.314787 1.96357   0.0852
+after_1990   0.617597  0.376242 1.64149   0.1393
+
+Formula: recovery ~ 1 + after_1990
+
+Coefficients:
+             Estimate Std.Error  t value Pr(>|t|)
+(Intercept)   0.50592  0.830459 0.609205   0.5593
+after_1990    1.06993  0.992588  1.07792   0.3125
+#+end_example
 
 [[file:/Users/mmorin/RED/results/figure1 men.png]]
 [[file:/Users/mmorin/RED/results/figure1 women.png]]
 
 
-The results at the monthly frequency are similar to the quarterly frequency. Here I use Industrial production as a monthly indicator of economic activity and employment in the goods-producing sector as the corresponding measure of employment.
+The results at the monthly frequency are similar to the baseline at the quarterly frequency (with GDP and payroll employment). Here I use Industrial production as a monthly indicator of economic activity and employment in the goods-producing sector as the corresponding measure of employment. The t-statistic for the difference in average recovery is 6.
 
 #+BEGIN_SRC julia :session :results output :tangle yes
 RED.Figure1(filepath = "results/figure1 monthly", gdp_symbol = :INDPRO, emp_symbol = :USGOOD)
 #+END_SRC
 
 #+RESULTS:
-: Monthly!
-: "results/figure1 monthly.png"
+: 
+: Formula: recovery ~ 1 + after_1990
+: 
+: Coefficients:
+:              Estimate Std.Error  t value Pr(>|t|)
+: (Intercept)  -4.41812  0.732036 -6.03539   0.0002
+: after_1990    5.59805  0.858388  6.52158   0.0001
 
 [[file:/Users/mmorin/RED/results/figure1 monthly.png]]
 
@@ -84,24 +122,45 @@ This next picture uses Hours of nonfarm workers, which start only in 1965. With 
 #+END_SRC
 
 #+RESULTS:
-: "results/figure1 hours.png"
+: 
+: Formula: recovery ~ 1 + after_1990
+: 
+: Coefficients:
+:              Estimate Std.Error  t value Pr(>|t|)
+: (Intercept)  0.303144   0.71339 0.424935   0.6927
+: after_1990    1.94385   1.00889  1.92673   0.1263
 
 [[file:/Users/mmorin/RED/results/figure1 hours.png]]
-This next picture uses the civilian employment ratio (employment divided by labor force). Because this measure is a ratio, I do not transform the logarithm and use just the change, measured in percentage points.
+This next picture uses the civilian employment ratio (employment divided by labor force). Because this measure is a ratio, I do not transform the logarithm and use just the change, measured in percentage points. Again, the t-statistic is high with a value of 4.
 
 #+BEGIN_SRC julia :session :results output :tangle yes
   RED.Figure1(filepath = "results/figure1 employment rate", emp_symbol = :EMRATIO)
 #+END_SRC
 
 #+RESULTS:
-: "results/figure1 employment rate.png"
+: 
+: Formula: recovery ~ 1 + after_1990
+: 
+: Coefficients:
+:              Estimate Std.Error  t value Pr(>|t|)
+: (Intercept)  -0.84093  0.201015 -4.18343   0.0031
+: after_1990   0.982742  0.240258  4.09035   0.0035
 
 [[file:/Users/mmorin/RED/results/figure1 employment rate.png]]
-The results for blacks and African American employment rate are similar:
+The results for blacks and African American employment rate are similar (t = 2.7):
 
 #+BEGIN_SRC julia :session :results output :tangle yes
   RED.Figure1(filepath = "results/figure1 blacks", emp_symbol = :LNS12300006)
 #+END_SRC
+
+#+RESULTS:
+: 
+: Formula: recovery ~ 1 + after_1990
+: 
+: Coefficients:
+:              Estimate Std.Error  t value Pr(>|t|)
+: (Intercept)  -1.12441  0.329097 -3.41664   0.0419
+: after_1990    1.41111  0.520349  2.71185   0.0731
 
 [[file:/Users/mmorin/RED/results/figure1 blacks.png]]
 
@@ -114,9 +173,29 @@ The next figures show the employment rate for the Hispanic and Latino group, Bla
 #+END_SRC
 
 #+RESULTS:
-: "results/figure1 hispanic.png"
-: "results/figure1 black men.png"
-: "results/figure1 black women.png"
+#+begin_example
+
+Formula: recovery ~ 1 + after_1990
+
+Coefficients:
+             Estimate Std.Error  t value Pr(>|t|)
+(Intercept)  -1.22151  0.584658 -2.08927   0.1279
+after_1990    1.61582  0.924425  1.74792   0.1788
+
+Formula: recovery ~ 1 + after_1990
+
+Coefficients:
+             Estimate Std.Error  t value Pr(>|t|)
+(Intercept)  -1.67615  0.643992 -2.60274   0.0802
+after_1990    1.65966   1.01824  1.62993   0.2016
+
+Formula: recovery ~ 1 + after_1990
+
+Coefficients:
+              Estimate Std.Error  t value Pr(>|t|)
+(Intercept)  -0.873665  0.696446 -1.25446   0.2985
+after_1990     1.43674   1.10118  1.30473   0.2830
+#+end_example
 
 [[file:/Users/mmorin/RED/results/figure1 hispanic.png]]
 
@@ -135,5 +214,7 @@ The price of computers has fallen substantially since 1960. This figure plots a 
 #+BEGIN_SRC julia :session :results output :tangle yes
 RED.Figure2(filepath = "results/Figure2")
 #+END_SRC
+
+#+RESULTS:
 
 [[file:/Users/mmorin/RED/results/Figure2.png]]

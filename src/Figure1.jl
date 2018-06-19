@@ -70,7 +70,7 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
         unit = "pp"
     else
         emp_symbol_local = Symbol(string(emp_symbol) * "_log")
-        df[emp_log_symbol] = log.(df[emp_symbol])
+        df[emp_symbol_local] = log.(df[emp_symbol])
 
         # Unit for the plot: percentages
         unit = "%"
@@ -86,8 +86,9 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
 									        troughs = troughs)
 
     # Indices before and after 1990
-    before_1990 = find(recoveries[:year] .< 1990)
-    after_1990 = find(recoveries[:year] .>= 1990)
+    recoveries[:after_1990] = recoveries[:year] .< 1990
+    after_1990 = find(recoveries[:after_1990])
+    before_1990 = find(.!recoveries[:after_1990])
 
     # Linear regression to get the mean and its standard error
     before_fit = fit(LinearModel, @formula(recovery ~ 1), recoveries[before_1990, :])
@@ -114,52 +115,58 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
     # Also run a regression of each recovery on a constant and an indicator of after 1990, and test
     # whether the latter coefficient is statistically non-zero
     break_fit = fit(LinearModel, @formula(recovery ~ 1 + after_1990), recoveries)
-    summary(break_fit)
+
+    # Print results, omitting the first line with the object type
+    break_lines = split(string(break_fit), "\n")
+for i in 2:length(break_lines)
+    println(break_lines[i])
+end
+
+
+filepath_with_extension = filepath * ".png"
+if true
+    # Version with Gadfly
     
-    filepath_with_extension = filepath * ".png"
-    if true
-        # Version with Gadfly
-        
-        p = plot(x = recoveries[:year],
-                 y = recoveries[:recovery],
-                 Geom.bar,
-                 Scale.x_discrete,
-                 Scale.y_continuous(minvalue = min(before_minus, after_minus), maxvalue = max(before_plus, after_plus)),
-                 yintercept=[0,
-                             before_avg, before_plus, before_minus,
-                             after_avg, after_plus, after_minus],
-                 Geom.hline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
-                            style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]),
-                 Guide.ylabel("Employment recovery for " * string(recovery_percent) * "% recovery of output (" * unit * ")", orientation = :vertical),
-                 Guide.xlabel("Peak year"),
-                 Theme(bar_highlight = colorant"dark grey",
-                       bar_spacing = 2mm,
-                       major_label_font_size = 10pt),
-                 Guide.title("Recovery for series " * string(emp_symbol)))
-        draw(PNG(filepath_with_extension, 800px, 400px), p)
-    else
-        # Version with Plots.jl
-        gr()
-        
-        ylim_upper = max(max(before_plus, after_plus), maximum(recoveries[:recovery]))
-        ylim_lower = min(min(before_minus, before_plus), minimum(recoveries[:recovery]))
-        margin = 0.05 * ylim_upper
-        ylim_upper += margin
-        ylim_lower -= margin
+    p = plot(x = recoveries[:year],
+             y = recoveries[:recovery],
+             Geom.bar,
+             Scale.x_discrete,
+             Scale.y_continuous(minvalue = min(before_minus, after_minus), maxvalue = max(before_plus, after_plus)),
+             yintercept=[0,
+                         before_avg, before_plus, before_minus,
+                         after_avg, after_plus, after_minus],
+             Geom.hline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
+                        style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]),
+             Guide.ylabel("Employment recovery for " * string(recovery_percent) * "% recovery of output (" * unit * ")", orientation = :vertical),
+             Guide.xlabel("Peak year"),
+             Theme(bar_highlight = colorant"dark grey",
+                   bar_spacing = 2mm,
+                   major_label_font_size = 10pt),
+             Guide.title("Recovery for series " * string(emp_symbol)))
+    draw(PNG(filepath_with_extension, 800px, 400px), p)
+else
+    # Version with Plots.jl
+    gr()
+    
+    ylim_upper = max(max(before_plus, after_plus), maximum(recoveries[:recovery]))
+    ylim_lower = min(min(before_minus, before_plus), minimum(recoveries[:recovery]))
+    margin = 0.05 * ylim_upper
+    ylim_upper += margin
+    ylim_lower -= margin
 
 
-        p = plot([0,
-                  before_avg, before_plus, before_minus,
-                  after_avg, after_plus, after_minus],
-                 seriestype = [:hline, :hline, :hline, :hline, :hline, :hline, :hline])
+    p = plot([0,
+              before_avg, before_plus, before_minus,
+              after_avg, after_plus, after_minus],
+             seriestype = [:hline, :hline, :hline, :hline, :hline, :hline, :hline])
 
-        bar!(map(string, recoveries[:year]),
-             recoveries[:recovery],
-             legend = false,
-             ylims = (ylim_lower, ylim_upper),
-             seriestype = [:bar, :hline]
-             )
-        savefig(filepath_with_extension)
-    end
-return filepath_with_extension
+    bar!(map(string, recoveries[:year]),
+         recoveries[:recovery],
+         legend = false,
+         ylims = (ylim_lower, ylim_upper),
+         seriestype = [:bar, :hline]
+         )
+    savefig(filepath_with_extension)
+end
+#return filepath_with_extension
 end

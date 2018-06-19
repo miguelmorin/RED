@@ -207,7 +207,7 @@ function load_data_from_list(; list_filenames_hashes::Dict{String, Integer} = no
             if (nothing == monthly_data)
                 monthly_data = monthly_df
             else
-                monthly_data = join(monthly_data, monthly_df, on = :DATE)
+                monthly_data = join(monthly_data, monthly_df, on = :DATE, kind = :outer)
             end
         end
     end
@@ -342,7 +342,7 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
 		break
 	    end
 	end
-
+        
 	# Get the index in the GDP DataFrame
 	trough_index = get_unique_index(trough, df[:DATE])
 

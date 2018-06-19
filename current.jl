@@ -18,4 +18,4 @@ using Revise
 # Import the package functions into Main, accessible with RED.[name]
 import RED
 
-RED.Figure1(filepath = "results/figure1 test")
+RED.Figure1(filepath = "results/figure1 monthly", gdp_symbol = :INDPRO, emp_symbol = :USGOOD)
