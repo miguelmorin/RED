@@ -2,7 +2,7 @@
 # Add packages: do this once
 if false
     Pkg.update()
-    Pkg.add.(["Revise", "Gallium", "DataFrames", "CSV", "GLM", "StatsModels", "Gadfly", "Cairo"])
+    Pkg.add.(["Revise", "Gallium", "DataFrames", "CSV", "GLM", "StatsModels", "Gadfly", "Cairo", "Documenter"])
 end
 
 # Package for debugging
@@ -18,4 +18,4 @@ using Revise
 # Import the package functions into Main, accessible with RED.[name]
 import RED
 
-RED.Figure1(filepath = "results/figure1 test", emp_symbol = :LNS12300032)
+RED.Figure1(filepath = "results/figure1 test")

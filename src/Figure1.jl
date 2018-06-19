@@ -48,7 +48,6 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
         df = monthly_data
         peaks = nber_cycles[:NBER_peaks_month]
         troughs = nber_cycles[:NBER_troughs_month]
-        println("Monthly!")
     else
         df = quarterly_data
         peaks = nber_cycles[:NBER_peaks_quarter]
@@ -112,6 +111,11 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
     @assert isapprox(2 * interval_95 * before_sd, before_plus - before_minus)
     @assert isapprox(2 * interval_95 * after_sd, after_plus - after_minus)
 
+    # Also run a regression of each recovery on a constant and an indicator of after 1990, and test
+    # whether the latter coefficient is statistically non-zero
+    break_fit = fit(LinearModel, @formula(recovery ~ 1 + after_1990), recoveries)
+    summary(break_fit)
+    
     filepath_with_extension = filepath * ".png"
     if true
         # Version with Gadfly

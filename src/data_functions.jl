@@ -139,7 +139,11 @@ function nber_string_to_date_month(date_string)
     return nber_string_to_date(date_string, quarter_not_month = false)
 end
 
-function filepath_hash_to_df(; filepath = nothing, expected_hash = nothing)
+function filename_and_hash_to_df(; filename = nothing, expected_hash = nothing, verbose = false)
+    # Global variables
+    global data_folder
+    filepath = joinpath(data_folder, filename)
+    
     # Check the hash
     found_hash = hash(readstring(filepath))
     @assert expected_hash == found_hash ("Filepath " * filepath * " has a different hash.\nExpected: " * string(expected_hash) * "\nFound: " * string(found_hash))
@@ -163,26 +167,22 @@ function filepath_hash_to_df(; filepath = nothing, expected_hash = nothing)
 	rename!(df, :Column1 => series_symbol)
     end
 
+    if verbose
+        println("loaded " * filepath)
+    end
+
     return df
 end
 
 function load_data_from_list(; list_filenames_hashes::Dict{String, Integer} = nothing,
                              verbose = false)
 
-    # Global variables
-    global data_folder
-    
     # Initialize data for scope in the function
     quarterly_data = nothing
     monthly_data = nothing
     
     for (i_filename, filename) in enumerate(keys(list_filenames_hashes))
-        filepath = joinpath(data_folder, filename)
-        df = filepath_hash_to_df(filepath = filepath, expected_hash = list_filenames_hashes[filename])
-
-        if verbose
-            println("loaded " * filepath)
-        end
+        df = filename_and_hash_to_df(filename = filename, expected_hash = list_filenames_hashes[filename])
 
         # Check if this dataframe is monthly, then convert it
         monthly_df = nothing
@@ -220,8 +220,7 @@ function load_nber_cycles(; nber_data_hashes::Dict{String, Integer} = nothing, d
     cycles = Dict{Symbol, Array{Dates.Date}}()
     
     for (i_filename, filename) in enumerate(keys(nber_data_hashes))
-        filepath = joinpath(data_folder, filename)
-        df = filepath_hash_to_df(filepath = filepath, expected_hash = nber_data_hashes[filename])
+        df = filename_and_hash_to_df(filename = filename, expected_hash = nber_data_hashes[filename])
 
         @assert 1 == length(names(df))
         name = names(df)[1]
@@ -276,7 +275,7 @@ julia> RED.get_unique_index(5, vector)
 2
 
 julia> RED.get_unique_index(2, vector)
-ERROR: AssertionError: 1 == length(index_results)
+ERROR: AssertionError: Expected 1 match for 2, found 0
 ```
 """
 function get_unique_index(element, vector)
@@ -292,11 +291,11 @@ Compute the recovery of employment at a given recovery of output
 ```jldoctest
 julia> dates = collect([Dates.Date(2001, m, 1) for m in 1:3:10]);
 
-julia> gdp = [1; 0; 1; 2];
+julia> gdp_log = [1; 0; 1; 2];
 
-julia> emp = [1; 0; 0.5; 1];
+julia> emp_log = [1; 0; 0.5; 1];
 
-julia> df = DataFrame(DATE = dates, gdp_log = gdp, emp_log = emp);
+julia> df = DataFrame(DATE = dates, gdp_log = gdp_log, emp_log = emp_log);
 
 julia> recovery_target_log = 1.5;
 
@@ -304,11 +303,13 @@ julia> peaks = [Dates.Date(2001, 1, 1)];
 
 julia> troughs = [Dates.Date(2001, 4, 1)];
 
-julia> RED.compute_recovery_of_employment_at_given_recovery_of_output(df = df, gdp_log_column = :gdp_log, emp_log_column = :emp_log, recovery_target_log = recovery_target_log, peaks = peaks, troughs = troughs)
-1×2 DataFrames.DataFrame
-│ Row │ year │ recovery │
-├─────┼──────┼──────────┤
-│ 1   │ 2001 │ 0.75     │
+julia> a = RED.compute_recovery_of_employment_at_given_recovery_of_output(df = df, gdp_log_column = :gdp_log, emp_column = :emp_log, employment_is_rate = false, recovery_target_log = recovery_target_log, peaks = peaks, troughs = troughs);
+
+julia> a[:year][1]
+2001
+
+julia> isapprox(100*(exp(0.75) - 1), a[:recovery][1])
+true
 ```
 """
 function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFrame = nothing,

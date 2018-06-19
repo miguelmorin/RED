@@ -113,8 +113,27 @@ The next figures show the employment rate for the Hispanic and Latino group, Bla
   RED.Figure1(filepath = "results/figure1 black women", emp_symbol = :LNS12300032)
 #+END_SRC
 
+#+RESULTS:
+: "results/figure1 hispanic.png"
+: "results/figure1 black men.png"
+: "results/figure1 black women.png"
+
 [[file:/Users/mmorin/RED/results/figure1 hispanic.png]]
 
 [[file:/Users/mmorin/RED/results/figure1 black men.png]]
 [[file:/Users/mmorin/RED/results/figure1 black women.png]]
 
+Hispanic and Latino have series by men and women (FRED series LNU02300034 and LNU02300035), but these start only in January 2000, which gives no comparison to previous recessions.
+
+Information by sector, such as the [[https://www.census.gov/cgi-bin/sssd/naics/naicsrch?chart=2017][NAICS sectoral classification]], has little information. For example, monthly employment in finance and insurance starts in January 1990. I will focus on employment by routine occupation later in this document.
+
+
+* Figure 2
+
+The price of computers has fallen substantially since 1960. This figure plots a price index for computers in a log scale. The data comes from the Bureau of Economic Analysis through [[https://fred.stlouisfed.org/series/B935RG3Q086SBEA][FRED]].
+
+#+BEGIN_SRC julia :session :results output :tangle yes
+RED.Figure2(filepath = "results/Figure2")
+#+END_SRC
+
+[[file:/Users/mmorin/RED/results/Figure2.png]]
