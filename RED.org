@@ -12,20 +12,22 @@ The original figure was:
 
 I updated this figure with code in Julia. Each function has doc-tests, which provide assurance that the code is doing the right thing. I also added the estimate of the average of the recovery of employment for the last three recessions and for the previous 7 recessions, along with 95% confidence intervals (from a linear regression of the recovery of employment on a constant). To confirm the statistical significance of this difference, I also run a regression of the recovery of employment on an indicator of post-1990: the coefficient is highly statistically significant. The series GDPC1 is the default measure of economic activity and omitted in the function calls.
 
-#+BEGIN_SRC julia :session :results output
-include("src/RED.jl");
+#+BEGIN_SRC julia :session :results output :exports both
+    include("src/RED.jl");
 
-# Use this package to revise source code in the same REPL session
-using Revise;
+    # Use this package to revise source code in the same REPL session
+    using Revise;
 
-# Import the package, with functions accessible with RED.[name]
-import RED;
+    # Import the package, with functions accessible with RED.[name]
+    import RED;
 
-# Delete all previous figures
-Base.Filesystem.rm("results", recursive = true)
-Base.Filesystem.mkdir("results")
+    # Delete all previous figures
+  try
+    Base.Filesystem.rm("results", recursive = true)
+  end
+    Base.Filesystem.mkdir("results")
 
-RED.Figure1(filepath = "results/figure1 payroll", emp_symbol = :PAYEMS)
+    RED.Figure1(filepath = "results/figure1 payroll", emp_symbol = :PAYEMS)
 #+END_SRC
 
 #+RESULTS:
@@ -42,10 +44,7 @@ WARNING: replacing module RED
 
 
 
-
-Formula: recovery ~ 1 + after_1990
-
-Coefficients:
+Linear regression of the recovery of indicator: PAYEMS
                Estimate Std.Error   t value Pr(>|t|)
 (Intercept)  0.00343867  0.281359 0.0122216   0.9905
 after_1990      1.71742  0.336289   5.10699   0.0009
@@ -56,7 +55,7 @@ after_1990      1.71742  0.336289   5.10699   0.0009
 
 The Current Population Survey is another measure of employment (FRED series CE160V). It has diverged significantly from the payroll employment numbers in recent decades. This figure plots the recovery of employment from the Current Population Survey. Notice the drop in the average, although the pattern is less clear, and the t-statistic drops from 5 to 1.5.
 
-#+BEGIN_SRC julia :session :results output :tangle yes
+#+BEGIN_SRC julia :session :results output :tangle yes :exports both
 RED.Figure1(filepath = "results/figure1 CPS", emp_symbol = :CE16OV)
 #+END_SRC
 
@@ -72,7 +71,7 @@ RED.Figure1(filepath = "results/figure1 CPS", emp_symbol = :CE16OV)
 [[/Users/mmorin/RED/results/figure1 CPS.png]]
 
 One referee from the AEJ Macro asked about female labor force participation: "As this theory is a theory about the trend, it would be nice if the author provided some justification for why this trend (the trend decline in the price of computers) is more relevant for the overall level of employment than the (recent) slowdown in the trend of female labor force participation. (Albanasi and Sahin 2014)" I still see this question as coming from left field, but it is interesting to produce these pictures again with a split by men and women (series LNS12000001 and LNS12000002). The employment figures for these come from the Current Population Survey. I find no significant difference between men and women (if anything, the pattern is stronger for men than for women):
-#+BEGIN_SRC julia :session :results output :tangle yes
+#+BEGIN_SRC julia :session :results output :tangle yes :exports both
   RED.Figure1(filepath = "results/figure1 men", emp_symbol = :LNS12000001)
   RED.Figure1(filepath = "results/figure1 women", emp_symbol = :LNS12000002)
 #+END_SRC
@@ -101,7 +100,7 @@ after_1990    1.06993  0.992588  1.07792   0.3125
 
 The results at the monthly frequency are similar to the baseline at the quarterly frequency (with GDP and payroll employment). Here I use Industrial production as a monthly indicator of economic activity and employment in the goods-producing sector as the corresponding measure of employment. The t-statistic for the difference in average recovery is 6.
 
-#+BEGIN_SRC julia :session :results output :tangle yes
+#+BEGIN_SRC julia :session :results output :tangle yes :exports both
 RED.Figure1(filepath = "results/figure1 monthly", gdp_symbol = :INDPRO, emp_symbol = :USGOOD)
 #+END_SRC
 
@@ -117,7 +116,7 @@ RED.Figure1(filepath = "results/figure1 monthly", gdp_symbol = :INDPRO, emp_symb
 [[file:/Users/mmorin/RED/results/figure1 monthly.png]]
 
 This next picture uses Hours of nonfarm workers, which start only in 1965. With hours, 2007 has a strong recovery, which breaks the statistical difference between the means:
-#+BEGIN_SRC julia :session :results output :tangle yes
+#+BEGIN_SRC julia :session :results output :tangle yes :exports both
   RED.Figure1(filepath = "results/figure1 hours", emp_symbol = :TOTLQ)
 #+END_SRC
 
@@ -133,7 +132,7 @@ This next picture uses Hours of nonfarm workers, which start only in 1965. With 
 [[file:/Users/mmorin/RED/results/figure1 hours.png]]
 This next picture uses the civilian employment ratio (employment divided by labor force). Because this measure is a ratio, I do not transform the logarithm and use just the change, measured in percentage points. Again, the t-statistic is high with a value of 4.
 
-#+BEGIN_SRC julia :session :results output :tangle yes
+#+BEGIN_SRC julia :session :results output :tangle yes :exports both
   RED.Figure1(filepath = "results/figure1 employment rate", emp_symbol = :EMRATIO)
 #+END_SRC
 
@@ -149,7 +148,7 @@ This next picture uses the civilian employment ratio (employment divided by labo
 [[file:/Users/mmorin/RED/results/figure1 employment rate.png]]
 The results for blacks and African American employment rate are similar (t = 2.7):
 
-#+BEGIN_SRC julia :session :results output :tangle yes
+#+BEGIN_SRC julia :session :results output :tangle yes :exports both
   RED.Figure1(filepath = "results/figure1 blacks", emp_symbol = :LNS12300006)
 #+END_SRC
 
@@ -166,7 +165,7 @@ The results for blacks and African American employment rate are similar (t = 2.7
 
 The next figures show the employment rate for the Hispanic and Latino group, Black and African American men over 20 years of age, and Black and African American women over 20 years of age. Here, the recent recessions have a lower average, though it's not statistically signficantly different from the previous two recessions, possibly because the sample size is limited to 5 recessions instead of the 10 post-war recessions (aside from the 1980 recession, whose recovery was too short because of the 1981 recession):
 
-#+BEGIN_SRC julia :session :results output :tangle yes
+#+BEGIN_SRC julia :session :results output :tangle yes :exports both
   RED.Figure1(filepath = "results/figure1 hispanic", emp_symbol = :LNS12300009)
   RED.Figure1(filepath = "results/figure1 black men", emp_symbol = :LNS12300031)
   RED.Figure1(filepath = "results/figure1 black women", emp_symbol = :LNS12300032)
@@ -211,10 +210,49 @@ Information by sector, such as the [[https://www.census.gov/cgi-bin/sssd/naics/n
 
 The price of computers has fallen substantially since 1960. This figure plots a price index for computers in a log scale. The data comes from the Bureau of Economic Analysis through [[https://fred.stlouisfed.org/series/B935RG3Q086SBEA][FRED]].
 
-#+BEGIN_SRC julia :session :results output :tangle yes
+#+BEGIN_SRC julia :session :results output :tangle yes :exports both
 RED.Figure2(filepath = "results/Figure2")
 #+END_SRC
 
 #+RESULTS:
 
 [[file:/Users/mmorin/RED/results/Figure2.png]]
+
+* Figure 5
+
+The referees asked for three improvements to the current figure 5:
+- robustness with a more standard classification of occupations, e.g. Acemoglu-Autor (2011). Because my current method is complicated and provides little value, I decided to drop it and just use Acemoglu-Autor (2011) all the way.
+- use a balanced panel of occupations, e.g. Dorn (2009). [[http://ddorn.net/data/Dorn_Thesis_Appendix.pdf][Dorn's thesis appendix]] (document A9 in [[http://ddorn.net/data.htm][his data page]]) gives the example of speech therapists, which became its own occupation in 1980. Dorn collapses Meyer and Osborne's 389 occ1990 occupations into a balanced panel of 330 occupations present in all years from 1980 onwards.
+- extend the figures to see more of the recovery. I stopped the figures in the paper shortly after the recession because those were the years of revision to the classification system. By using the point above with a consistent panel, I can simply plot the time series of employment by occupation.
+
+
+To do this, download the following files:
+- Crosswalk files A3 (1970 Census occ to occ1990dd), A4 (1980 Census occ to occ1990dd), A5 (2000 Census occ to occ1990dd), and A6 (2010 Census occ to occ1990dd) from [[http://ddorn.net/data.htm][David Dorn's data page]]
+- IPUMS: select the following samples from [[https://cps.ipums.org/cps-action/samples][CPS-IPUMS]], then add the following variables starting at [[https://cps.ipums.org/cps-action/variables/group][select variables]]:
+  - EMPSTAT
+  - OCC1990
+  - some weight
+
+Weighting: I used WTSUPP in my dissertation and that weight is now gone. Instead I have ASECWT. This [[https://cps.ipums.org/cps/three_eighths.shtml][page]] says:
+
+> Because the 5/8 file and the 3/8 file are not completely comparable, WTSUPP values have been assigned so that either file is individually representative of the entire US population. If both parts of the file are analyzed together and weighted using WTSUPP, the resulting estimates will be twice the US population. IPUMS-CPS provides a flag variable, HFLAG, for users to identify which respondents were originally in the 3/8 file. More specifically, the Census Bureau recommends using the 3/8 file (HFLAG=1) for comparing income estimates from ASEC 2014 with ASEC 2015 and beyond. Similarly, those looking to compare income estimates from ASEC 2014 with ASEC 2013 and prior should use the 5/8 file (HFLAG=0). In general, the choice of weights will depend on the particular analysis being undertaken.
+
+Very confusing, and Cortes doesn't say which weights they have! I will email IPUMS.
+
+Working age population (to normalize employment levels and accounting for population growth) from FRED: USAWFPNA (in Excel file working_age_pop.xls); or rather another one for later?
+
+
+Alternatively, you may use the ones in the local repository. The data files have version control in the code, i.e. the code will only run if their hash coincides with the hash at the time of this writing. Data revisions may change the results.
+
+
+The Acemoglu-Autor classification does not have files. Instead, page 1080 mentions:
+
+> These patterns of specialization appear broadly consistent with our characterization of the task content of broad occupational categories: professional, managerial and technical occupations are specialized in non-routine cognitive tasks; clerical and sales occupations are specialized in routine cognitive tasks; production and operative occupations are specialized in routine manual tasks; and service occupations are specialized in non-routine manual tasks.
+
+One problem with this is in page 1099: production and operators have a much higher score in "non-routine manual" from O*NET than do service operators, 0.95 compared to 0.14. But it's what the referees asked for. This crosswalk does not have files, it is embedded in the code of `Figure5.jl`.
+
+* References
+
+David Autor and David Dorn. "The Growth of Low Skill Service Jobs and the Polarization of the U.S. Labor Market." American Economic Review, 103(5), 1553-1597, 2013.
+
+David Dorn. "Essays on Inequality, Spatial Interaction, and the Demand for Skills." Dissertation University of St. Gallen no. 3613, September 2009.

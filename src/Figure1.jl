@@ -114,19 +114,14 @@ function Figure1(; gdp_symbol::Symbol = :GDPC1,
 
     # Also run a regression of each recovery on a constant and an indicator of after 1990, and test
     # whether the latter coefficient is statistically non-zero
+
     break_fit = fit(LinearModel, @formula(recovery ~ 1 + after_1990), recoveries)
+    println("Linear regression of the recovery of indicator: " * string(emp_symbol))
+    println(coeftable(break_fit))
 
-    # Print results, omitting the first line with the object type
-    break_lines = split(string(break_fit), "\n")
-for i in 2:length(break_lines)
-    println(break_lines[i])
-end
-
-
-filepath_with_extension = filepath * ".png"
 if true
     # Version with Gadfly
-    
+    global theme
     p = plot(x = recoveries[:year],
              y = recoveries[:recovery],
              Geom.bar,
@@ -137,13 +132,11 @@ if true
                          after_avg, after_plus, after_minus],
              Geom.hline(color = ["black", "green", "green", "green", "blue", "blue", "blue"],
                         style = [:solid, :solid, :dash, :dash, :solid, :dash, :dash]),
-             Guide.ylabel("Employment recovery for " * string(recovery_percent) * "% recovery of output (" * unit * ")", orientation = :vertical),
+             Guide.ylabel("Employment recovery for\n" * string(recovery_percent) * "% recovery of output (" * unit * ")", orientation = :vertical),
              Guide.xlabel("Peak year"),
-             Theme(bar_highlight = colorant"dark grey",
-                   bar_spacing = 2mm,
-                   major_label_font_size = 10pt),
+             theme,
              Guide.title("Recovery for series " * string(emp_symbol)))
-    draw(PNG(filepath_with_extension, 800px, 400px), p)
+    RED.export_plot(plot = p, filepath_without_extension = filepath)
 else
     # Version with Plots.jl
     gr()

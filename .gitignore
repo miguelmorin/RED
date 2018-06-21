@@ -1,9 +1,10 @@
-
+current.jl
 *.asv
 .DS_Store
 *.Rproj.user*
 .Rproj.user
 .Rbuildignore
+.Rhistory
 .juliahistory
 \#*.*\#
 .\#*.*

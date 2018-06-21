@@ -400,3 +400,9 @@ function compute_recovery_of_employment_at_given_recovery_of_output(; df::DataFr
     end
     return recoveries
 end
+
+
+function export_plot(; plot = nothing, filepath_without_extension = nothing)
+    draw(PNG(filepath_without_extension * ".png", 530px, 400px), plot)
+    draw(PDF(filepath_without_extension * ".pdf", 530px, 400px), plot)
+end
